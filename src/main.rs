@@ -103,7 +103,7 @@ mod test {
     }
 
     #[test]
-    fn Types() {
+    fn types() {
         let input = r#"
             Name = * {
                 Fire = String
