@@ -1,71 +1,129 @@
-use std::{io::Lines, ops::Index, range::Range, str::Split};
+use logos::Logos;
 
-struct Tokenizer<'input> {
-    input: &'input str,
-    position: usize,
-}
+#[derive(Debug, Logos, PartialEq)]
+#[logos(skip r"[ \t\r\f]+")]
+enum Token {
+    #[token("<")]
+    AngleLeft,
 
-struct Rule {
-    str: &'static str,
-    mutiple: bool,
-}
+    #[token(">")]
+    AngleRight,
 
-const RULES: [(&str, Token<'_>); 13] = [
-    ("(", Token::BracketLeft),
-    (")", Token::BracketRight),
-    (",", Token::Comma),
-    ("{", Token::CurlyLeft),
-    ("}", Token::CurlyRight),
-    (".", Token::DotSingle),
-    (":", Token::DotDouble),
-    ("=", Token::Equal),
-    ("+", Token::Plus),
-    ("[", Token::SquareLeft),
-    ("]", Token::SquareRight),
-    ("*", Token::Star),
-    ("~", Token::Tilde),
-];
-
-impl<'input> Iterator for Tokenizer<'input> {
-    type Item = Result<Token<'input>, String>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // single char matches
-        for (chars, token) in RULES {
-            let size = chars.len();
-
-            if self.input.get(self.position..size)? == chars {
-                self.position += size;
-                return Some(Ok(token));
-            }
-        }
-
-        // repeat matches for new lines
-
-        None
-    }
-}
-
-enum Token<'input> {
-    ArrowLeft,
-    ArrowRight,
+    #[token("(")]
     BracketLeft,
+
+    #[token(")")]
     BracketRight,
+
+    #[token(",")]
     Comma,
+
+    #[token("{")]
     CurlyLeft,
+
+    #[token("}")]
     CurlyRight,
+
+    #[token(".")]
     DotSingle,
-    DotDouble,
+
+    #[token(":")]
+    Colon,
+
+    #[token("=")]
     Equal,
+
+    #[token("+")]
     Plus,
-    Newline,
+
+    #[token("[")]
     SquareLeft,
+
+    #[token("]")]
     SquareRight,
+
+    #[token("*")]
     Star,
+
+    #[token("~")]
     Tilde,
-    Unknown(&'input str),
+
+    #[token("\n")]
+    Newline,
+
+    #[regex("[a-zA-Z0-9]+")]
+    Unknown,
 }
 
-fn main() {
-    println!("Hello, world!");
+fn main() {}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+
+    fn compute<'a>(input: &'a str) -> Vec<Token> {
+        let input = input.trim();
+        let lex = Token::lexer(input).into_iter();
+        let tokens = Result::<Vec<Token>, ()>::from_iter(lex).unwrap();
+        tokens
+    }
+
+    #[test]
+    fn simple() {
+        let input = r#"
+            Name = String
+        "#;
+
+        let tokens = compute(input);
+        let expected = vec![Token::Unknown, Token::Equal, Token::Unknown];
+
+        assert_eq!(tokens, expected)
+    }
+
+    #[test]
+    fn multiline_assign() {
+        let input = r#"
+            Name = String
+            User = Agent
+        "#;
+
+        let tokens = compute(input);
+        let expected = vec![
+            Token::Unknown,
+            Token::Equal,
+            Token::Unknown,
+            Token::Newline,
+            Token::Unknown,
+            Token::Equal,
+            Token::Unknown,
+        ];
+
+        assert_eq!(tokens, expected)
+    }
+
+    #[test]
+    fn Types() {
+        let input = r#"
+            Name = * {
+                Fire = String
+            }
+        "#;
+
+        let tokens = compute(input);
+        let expected = vec![
+            Token::Unknown,
+            Token::Equal,
+            Token::Star,
+            Token::CurlyLeft,
+            Token::Newline,
+            Token::Unknown,
+            Token::Equal,
+            Token::Unknown,
+            Token::Newline,
+            Token::CurlyRight,
+        ];
+
+        assert_eq!(tokens, expected)
+    }
 }
