@@ -93,3 +93,35 @@ partitioned list = partition list {}
 partitioned = fmap partitioned (sd => sd)
 
 ```
+
+## Language Considerations
+
+It's hard to get everything a language needs whilst also keeping verbosity low.
+
+I believe it's better to do things 1 way rather than have an optimal way to do the same thing in 2 different cases.
+
+### Features and things softsware at code level could do
+
+1. Variables
+2. Expressions
+3. Assignment
+4. Functions
+5. Lambdas
+6. Named returns
+7. Strategy pattern (traits)
+8. Modules
+   1. Imports
+      1. Named
+      2. Default
+   2. Exports
+      1. Named
+      2. Defaults
+9. Public
+10. Private
+11. Scope of variables
+12. Reference, Dereferences
+13. Compiled, Interpreted
+14. Overridable symbols
+15.
+
+If the language doesn't have good built-ins, the ecosystem is forced to fill the gap.
