@@ -1,0 +1,54 @@
+use std::process::Command;
+
+fn bin() -> Command {
+    let path = env!("CARGO_BIN_EXE_bilda");
+    Command::new(path)
+}
+
+#[test]
+fn check_good_file_prints_ok() {
+    let output = bin()
+        .arg("--check")
+        .arg("tests/fixtures/good.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "ok");
+}
+
+#[test]
+fn check_bad_file_fails() {
+    let output = bin()
+        .arg("--check")
+        .arg("tests/fixtures/bad.bilda")
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("Newline"));
+}
+
+#[test]
+fn check_missing_file_fails() {
+    let output = bin()
+        .arg("--check")
+        .arg("tests/fixtures/missing.bilda")
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+}
+
+#[test]
+fn run_without_check_todos() {
+    let output = bin()
+        .arg("tests/fixtures/good.bilda")
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("not yet implemented"));
+}

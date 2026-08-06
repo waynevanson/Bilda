@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 chumsky = { version = "1.0.0-alpha.8", features = ["pratt", "unstable"] }
+clap = { version = "4.5.27", features = ["derive"] }
 logos = "0.16.1"
