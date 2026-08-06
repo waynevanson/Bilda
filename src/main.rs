@@ -3,27 +3,34 @@ use std::process;
 
 use bilda::lexer::Token;
 use bilda::parser;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use logos::Logos;
 
 #[derive(Parser)]
 #[command(name = "bilda")]
 struct Args {
-    #[arg(long, help = "Check syntax and exit")]
-    check: bool,
+    #[command(subcommand)]
+    command: Command,
+}
 
-    file: String,
+#[derive(Subcommand)]
+enum Command {
+    Check { file: String },
+    Run { file: String },
 }
 
 fn main() {
     let args = Args::parse();
 
-    if !args.check {
-        todo!();
+    match args.command {
+        Command::Check { file } => check(&file),
+        Command::Run { file } => run(&file),
     }
+}
 
-    let source = fs::read_to_string(&args.file).unwrap_or_else(|e| {
-        eprintln!("error reading {}: {e}", args.file);
+fn check(path: &str) {
+    let source = fs::read_to_string(path).unwrap_or_else(|e| {
+        eprintln!("error reading {}: {e}", path);
         process::exit(1);
     });
 
@@ -45,4 +52,8 @@ fn main() {
             process::exit(1);
         }
     }
+}
+
+fn run(_path: &str) {
+    todo!();
 }

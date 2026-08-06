@@ -8,7 +8,7 @@ fn bin() -> Command {
 #[test]
 fn check_good_file_prints_ok() {
     let output = bin()
-        .arg("--check")
+        .arg("check")
         .arg("tests/fixtures/good.bilda")
         .output()
         .unwrap();
@@ -20,7 +20,7 @@ fn check_good_file_prints_ok() {
 #[test]
 fn check_bad_file_fails() {
     let output = bin()
-        .arg("--check")
+        .arg("check")
         .arg("tests/fixtures/bad.bilda")
         .output()
         .unwrap();
@@ -33,7 +33,7 @@ fn check_bad_file_fails() {
 #[test]
 fn check_missing_file_fails() {
     let output = bin()
-        .arg("--check")
+        .arg("check")
         .arg("tests/fixtures/missing.bilda")
         .output()
         .unwrap();
@@ -42,8 +42,9 @@ fn check_missing_file_fails() {
 }
 
 #[test]
-fn run_without_check_todos() {
+fn run_todos() {
     let output = bin()
+        .arg("run")
         .arg("tests/fixtures/good.bilda")
         .output()
         .unwrap();
