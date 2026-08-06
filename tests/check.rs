@@ -30,6 +30,18 @@ fn check_typed_file_prints_ok() {
 }
 
 #[test]
+fn check_echoehco_file_prints_ok() {
+    let output = bin()
+        .arg("check")
+        .arg("tests/fixtures/echoehco.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "ok");
+}
+
+#[test]
 fn check_bad_file_fails() {
     let output = bin()
         .arg("check")

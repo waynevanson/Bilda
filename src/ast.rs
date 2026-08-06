@@ -3,8 +3,20 @@ pub struct Ast(pub Vec<Block>);
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Block {
+    Use(UseBlock),
     Let(LetBlock),
     Type(TypeBlock),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct UseBlock {
+    pub imports: Vec<Import>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Import {
+    pub module: String,
+    pub names: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]

@@ -1,0 +1,12 @@
+uses
+    std {
+        echo
+    }
+type
+    String :: u32
+    Age :: u64
+vars
+    name = String(10)
+    age = Age(32)
+expr
+    echo(age)

@@ -5,6 +5,9 @@ use logos::Logos;
 #[logos(skip(r"#[^\n]*", allow_greedy = true))]
 #[allow(dead_code)]
 pub enum Token {
+    #[token("uses")]
+    Uses,
+
     #[token("type")]
     Type,
 

@@ -180,7 +180,29 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
             })
         });
 
-    let block = choice((type_block, vars_block));
+    let import = ident()
+        .then(
+            ident()
+                .separated_by(newlines_req())
+                .allow_trailing()
+                .collect::<Vec<_>>()
+                .delimited_by(
+                    just(Token::CurlyLeft).then_ignore(newlines()),
+                    just(Token::CurlyRight),
+                ),
+        )
+        .map(|(module, names)| Import { module, names });
+
+    let use_block = keyword(Token::Uses)
+        .ignore_then(newlines_req())
+        .then(
+            import
+                .separated_by(newlines_req())
+                .collect::<Vec<_>>(),
+        )
+        .map(|(_, imports)| Block::Use(UseBlock { imports }));
+
+    let block = choice((use_block, type_block, vars_block));
 
     block
         .separated_by(newlines_req())
@@ -344,6 +366,32 @@ mod tests {
         };
         assert_eq!(let_block.bindings.len(), 1);
         assert_eq!(let_block.bindings[0].name, "c");
+    }
+
+    #[test]
+    fn use_block() {
+        let tokens = lex(r#"
+            uses
+                std {
+                    echo
+                }
+            type
+                String :: u32
+            vars
+                name = String(10)
+            expr
+                echo(name)
+        "#);
+
+        let Ast(blocks) = parse(&tokens).unwrap();
+        assert_eq!(blocks.len(), 3);
+
+        let Block::Use(use_block) = &blocks[0] else {
+            panic!("expected use block");
+        };
+        assert_eq!(use_block.imports.len(), 1);
+        assert_eq!(use_block.imports[0].module, "std");
+        assert_eq!(use_block.imports[0].names, vec!["echo"]);
     }
 
 }
