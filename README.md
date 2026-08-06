@@ -122,6 +122,6 @@ I believe it's better to do things 1 way rather than have an optimal way to do t
 12. Reference, Dereferences
 13. Compiled, Interpreted
 14. Overridable symbols
-15.
+15. Total or Turing complete?
 
 If the language doesn't have good built-ins, the ecosystem is forced to fill the gap.

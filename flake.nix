@@ -34,6 +34,8 @@
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = with pkgs; [
           rustToolchain
+          nodejs_24
+          corepack_24
         ];
       };
     };
