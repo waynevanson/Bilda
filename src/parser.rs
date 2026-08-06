@@ -152,7 +152,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
         .allow_trailing()
         .collect::<Vec<_>>();
 
-    let let_block = keyword(Token::Let)
+    let vars_block = keyword(Token::Vars)
         .ignore_then(newlines_req())
         .then(declarations.clone())
         .then_ignore(newlines())
@@ -166,7 +166,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
             })
         });
 
-    let block = let_block;
+    let block = vars_block;
 
     block
         .separated_by(newlines_req())
@@ -193,9 +193,9 @@ mod tests {
     }
 
     #[test]
-    fn let_expr() {
+    fn vars_expr() {
         let tokens = lex(r#"
-            let
+            vars
                 Name = String
             expr
                 Name
@@ -214,7 +214,7 @@ mod tests {
     #[test]
     fn lambda_and_application() {
         let tokens = lex(r#"
-            let
+            vars
                 closure = x y => x * y
                 answer = closure 6 7
             expr
@@ -233,7 +233,7 @@ mod tests {
     #[test]
     fn record_fields() {
         let tokens = lex(r#"
-            let
+            vars
                 Name = + { First = String Second = String }
             expr
                 Name
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn access() {
         let tokens = lex(r#"
-            let
+            vars
                 type_access = Name::First
                 value_access = Name.First
             expr

@@ -1,4 +1,4 @@
-let
+vars
   x =
 expr
   x

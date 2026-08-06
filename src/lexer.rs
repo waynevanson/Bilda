@@ -5,8 +5,8 @@ use logos::Logos;
 #[logos(skip(r"#[^\n]*", allow_greedy = true))]
 #[allow(dead_code)]
 pub enum Token {
-    #[token("let")]
-    Let,
+    #[token("vars")]
+    Vars,
 
     #[token("expr")]
     Expr,
@@ -295,9 +295,9 @@ mod test {
     }
 
     #[test]
-    fn let_expr_block() {
+    fn vars_expr_block() {
         let input = r#"
-            let
+            vars
                 Name = String
             expr
                 Name
@@ -307,7 +307,7 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Let,
+                Token::Vars,
                 Token::Newline,
                 id("Name"),
                 Token::Equal,
@@ -323,7 +323,7 @@ mod test {
     #[test]
     fn readme_example() {
         let input = r#"
-            let
+            vars
               Thing = ~ String
               Thang = String
 
@@ -351,7 +351,7 @@ mod test {
         "#;
 
         let tokens = compute(input);
-        assert!(tokens.contains(&Token::Let));
+        assert!(tokens.contains(&Token::Vars));
         assert!(tokens.contains(&Token::Expr));
         assert!(tokens.contains(&Token::Tilde));
         assert!(tokens.contains(&Token::Plus));

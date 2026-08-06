@@ -23,7 +23,7 @@ A scope thing to cache a thing?
 Everything is a function? lol
 
 ```
-let
+vars
   Thing = ~ String
   Thang = String
 
