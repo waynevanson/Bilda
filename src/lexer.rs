@@ -1,6 +1,6 @@
 use logos::Logos;
 
-#[derive(Debug, Logos, PartialEq)]
+#[derive(Clone, Debug, Logos, PartialEq)]
 #[logos(skip r"[ \t\r\f]+")]
 #[logos(skip(r"#[^\n]*", allow_greedy = true))]
 #[allow(dead_code)]
@@ -74,11 +74,11 @@ pub enum Token {
     #[token("\n")]
     Newline,
 
-    #[regex("[0-9]+")]
-    Number,
+    #[regex("[0-9]+", |lex| lex.slice().to_string())]
+    Number(String),
 
-    #[regex("[a-zA-Z_][a-zA-Z0-9_]*")]
-    Unknown,
+    #[regex("[a-zA-Z_][a-zA-Z0-9_]*", |lex| lex.slice().to_string())]
+    Ident(String),
 }
 
 #[cfg(test)]
@@ -86,11 +86,17 @@ mod test {
 
     use super::*;
 
-    fn compute<'a>(input: &'a str) -> Vec<Token> {
+    fn compute(input: &str) -> Vec<Token> {
         let input = input.trim();
-        let lex = Token::lexer(input).into_iter();
-        let tokens = Result::<Vec<Token>, ()>::from_iter(lex).unwrap();
-        tokens
+        Result::<Vec<Token>, ()>::from_iter(Token::lexer(input)).unwrap()
+    }
+
+    fn id(s: &str) -> Token {
+        Token::Ident(s.to_string())
+    }
+
+    fn num(s: &str) -> Token {
+        Token::Number(s.to_string())
     }
 
     #[test]
@@ -100,7 +106,7 @@ mod test {
         "#;
 
         let tokens = compute(input);
-        let expected = vec![Token::Unknown, Token::Equal, Token::Unknown];
+        let expected = vec![id("Name"), Token::Equal, id("String")];
 
         assert_eq!(tokens, expected)
     }
@@ -114,13 +120,13 @@ mod test {
 
         let tokens = compute(input);
         let expected = vec![
-            Token::Unknown,
+            id("Name"),
             Token::Equal,
-            Token::Unknown,
+            id("String"),
             Token::Newline,
-            Token::Unknown,
+            id("User"),
             Token::Equal,
-            Token::Unknown,
+            id("Agent"),
         ];
 
         assert_eq!(tokens, expected)
@@ -136,14 +142,14 @@ mod test {
 
         let tokens = compute(input);
         let expected = vec![
-            Token::Unknown,
+            id("Name"),
             Token::Equal,
             Token::Star,
             Token::CurlyLeft,
             Token::Newline,
-            Token::Unknown,
+            id("Fire"),
             Token::Equal,
-            Token::Unknown,
+            id("String"),
             Token::Newline,
             Token::CurlyRight,
         ];
@@ -156,7 +162,7 @@ mod test {
         let tokens = compute("Thing = ~ String");
         assert_eq!(
             tokens,
-            vec![Token::Unknown, Token::Equal, Token::Tilde, Token::Unknown]
+            vec![id("Thing"), Token::Equal, Token::Tilde, id("String")]
         );
     }
 
@@ -166,16 +172,16 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("Name"),
                 Token::Equal,
                 Token::Plus,
                 Token::CurlyLeft,
-                Token::Unknown,
+                id("First"),
                 Token::Equal,
-                Token::Unknown,
-                Token::Unknown,
+                id("String"),
+                id("Second"),
                 Token::Equal,
-                Token::Unknown,
+                id("String"),
                 Token::CurlyRight,
             ]
         );
@@ -187,16 +193,16 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("Name"),
                 Token::Equal,
                 Token::Star,
                 Token::CurlyLeft,
-                Token::Unknown,
+                id("First"),
                 Token::Equal,
-                Token::Unknown,
-                Token::Unknown,
+                id("String"),
+                id("Second"),
                 Token::Equal,
-                Token::Unknown,
+                id("String"),
                 Token::CurlyRight,
             ]
         );
@@ -208,11 +214,11 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("f"),
                 Token::Equal,
-                Token::Unknown,
+                id("Name"),
                 Token::DoubleColon,
-                Token::Unknown,
+                id("First"),
             ]
         );
     }
@@ -223,11 +229,11 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("f"),
                 Token::Equal,
-                Token::Unknown,
+                id("Name"),
                 Token::DotSingle,
-                Token::Unknown,
+                id("First"),
             ]
         );
     }
@@ -238,14 +244,14 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("f"),
                 Token::Equal,
-                Token::Unknown,
-                Token::Unknown,
+                id("x"),
+                id("y"),
                 Token::Arrow,
-                Token::Unknown,
+                id("x"),
                 Token::Star,
-                Token::Unknown,
+                id("y"),
             ]
         );
     }
@@ -256,15 +262,15 @@ mod test {
         assert_eq!(
             tokens,
             vec![
-                Token::Unknown,
+                id("Name"),
                 Token::Equal,
                 Token::Minus,
                 Token::CurlyLeft,
-                Token::Unknown,
+                id("First"),
                 Token::Equal,
                 Token::CurlyLeft,
                 Token::CurlyRight,
-                Token::Unknown,
+                id("Second"),
                 Token::Equal,
                 Token::CurlyLeft,
                 Token::CurlyRight,
@@ -282,7 +288,7 @@ mod test {
     #[test]
     fn number() {
         let tokens = compute("age = 32");
-        assert_eq!(tokens, vec![Token::Unknown, Token::Equal, Token::Number]);
+        assert_eq!(tokens, vec![id("age"), Token::Equal, num("32")]);
     }
 
     #[test]
@@ -290,7 +296,7 @@ mod test {
         let tokens = compute("# this is a comment\nName = String");
         assert_eq!(
             tokens,
-            vec![Token::Newline, Token::Unknown, Token::Equal, Token::Unknown]
+            vec![Token::Newline, id("Name"), Token::Equal, id("String")]
         );
     }
 
@@ -309,13 +315,13 @@ mod test {
             vec![
                 Token::Let,
                 Token::Newline,
-                Token::Unknown,
+                id("Name"),
                 Token::Equal,
-                Token::Unknown,
+                id("String"),
                 Token::Newline,
                 Token::In,
                 Token::Newline,
-                Token::Unknown,
+                id("Name"),
             ]
         );
     }
@@ -335,13 +341,13 @@ mod test {
             vec![
                 Token::Expr,
                 Token::Newline,
-                Token::Unknown,
+                id("name"),
                 Token::Newline,
                 Token::Where,
                 Token::Newline,
-                Token::Unknown,
+                id("name"),
                 Token::Equal,
-                Token::Number,
+                num("2"),
             ]
         );
     }
@@ -392,6 +398,6 @@ mod test {
         assert!(tokens.contains(&Token::DoubleColon));
         assert!(tokens.contains(&Token::DotSingle));
         assert!(tokens.contains(&Token::Arrow));
-        assert!(tokens.contains(&Token::Number));
+        assert!(tokens.iter().any(|t| matches!(t, Token::Number(_))));
     }
 }
