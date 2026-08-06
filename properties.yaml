@@ -1,0 +1,17 @@
+tags:
+  &sdsd sdsd: sd
+
+objects:
+  sho:
+    - assignment
+    - function
+    - lambda
+    - named returns
+    - modules
+    - strategy pattern
+    - scope
+    - reference
+    - dereference
+    - memory management
+    - control
+    - overridable symbols
