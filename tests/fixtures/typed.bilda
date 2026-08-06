@@ -1,0 +1,11 @@
+type
+    A :: u32
+    B :: u64
+vars
+    c = A(2)
+    d = vars
+            v = c::string
+        expr
+            "{v}"
+expr
+    c
