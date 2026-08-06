@@ -152,6 +152,20 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
         .allow_trailing()
         .collect::<Vec<_>>();
 
+    let type_declaration = ident()
+        .then_ignore(just(Token::DoubleColon))
+        .then(expr.clone())
+        .map(|(name, value)| TypeBinding { name, value });
+
+    let type_declarations = type_declaration
+        .separated_by(newlines_req())
+        .collect::<Vec<_>>();
+
+    let type_block = keyword(Token::Type)
+        .ignore_then(newlines_req())
+        .then(type_declarations)
+        .map(|(_, bindings)| Block::Type(TypeBlock { bindings }));
+
     let vars_block = keyword(Token::Vars)
         .ignore_then(newlines_req())
         .then(declarations.clone())
@@ -166,7 +180,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
             })
         });
 
-    let block = vars_block;
+    let block = choice((type_block, vars_block));
 
     block
         .separated_by(newlines_req())
@@ -204,7 +218,9 @@ mod tests {
         let Ast(blocks) = parse(&tokens).unwrap();
         assert_eq!(blocks.len(), 1);
 
-        let Block::Let(block) = &blocks[0];
+        let Block::Let(block) = &blocks[0] else {
+            panic!("expected vars block");
+        };
         assert_eq!(block.bindings.len(), 1);
         assert_eq!(block.bindings[0].name, "Name");
         assert_eq!(block.bindings[0].value, Expr::Ident("String".to_string()));
@@ -222,7 +238,9 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0];
+        let Block::Let(block) = &blocks[0] else {
+            panic!("expected vars block");
+        };
 
         assert_eq!(block.bindings[0].name, "closure");
         assert!(matches!(block.bindings[0].value, Expr::Lambda { .. }));
@@ -240,7 +258,9 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0];
+        let Block::Let(block) = &blocks[0] else {
+            panic!("expected vars block");
+        };
 
         assert_eq!(block.bindings[0].name, "Name");
         let Expr::Prefix {
@@ -269,7 +289,9 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0];
+        let Block::Let(block) = &blocks[0] else {
+            panic!("expected vars block");
+        };
 
         assert!(matches!(
             block.bindings[0].value,
@@ -285,6 +307,43 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn type_block() {
+        let tokens = lex(r#"
+            type
+                A :: u32
+                B :: u64
+            vars
+                c = A(2)
+            expr
+                c
+        "#);
+
+        let Ast(blocks) = parse(&tokens).unwrap();
+        assert_eq!(blocks.len(), 2);
+
+        let Block::Type(type_block) = &blocks[0] else {
+            panic!("expected type block");
+        };
+        assert_eq!(type_block.bindings.len(), 2);
+        assert_eq!(type_block.bindings[0].name, "A");
+        assert_eq!(
+            type_block.bindings[0].value,
+            Expr::Ident("u32".to_string())
+        );
+        assert_eq!(type_block.bindings[1].name, "B");
+        assert_eq!(
+            type_block.bindings[1].value,
+            Expr::Ident("u64".to_string())
+        );
+
+        let Block::Let(let_block) = &blocks[1] else {
+            panic!("expected vars block");
+        };
+        assert_eq!(let_block.bindings.len(), 1);
+        assert_eq!(let_block.bindings[0].name, "c");
     }
 
 }

@@ -5,6 +5,9 @@ use logos::Logos;
 #[logos(skip(r"#[^\n]*", allow_greedy = true))]
 #[allow(dead_code)]
 pub enum Token {
+    #[token("type")]
+    Type,
+
     #[token("vars")]
     Vars,
 
@@ -316,6 +319,31 @@ mod test {
                 Token::Expr,
                 Token::Newline,
                 id("Name"),
+            ]
+        );
+    }
+
+    #[test]
+    fn type_block() {
+        let input = r#"
+            type
+                A :: u32
+                B :: u64
+        "#;
+
+        let tokens = compute(input);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::Type,
+                Token::Newline,
+                id("A"),
+                Token::DoubleColon,
+                id("u32"),
+                Token::Newline,
+                id("B"),
+                Token::DoubleColon,
+                id("u64"),
             ]
         );
     }

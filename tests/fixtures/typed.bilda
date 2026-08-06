@@ -4,7 +4,7 @@ type
 vars
     c = A(2)
     d = vars
-            v = c::string
+            v = ~c::to.string
         expr
             "{v}"
 expr

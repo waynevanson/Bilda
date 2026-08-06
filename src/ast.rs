@@ -4,12 +4,24 @@ pub struct Ast(pub Vec<Block>);
 #[derive(Clone, Debug, PartialEq)]
 pub enum Block {
     Let(LetBlock),
+    Type(TypeBlock),
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LetBlock {
     pub bindings: Vec<Binding>,
     pub body: Box<Expr>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypeBlock {
+    pub bindings: Vec<TypeBinding>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TypeBinding {
+    pub name: String,
+    pub value: Expr,
 }
 
 #[derive(Clone, Debug, PartialEq)]
