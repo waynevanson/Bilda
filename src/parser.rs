@@ -166,21 +166,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
             })
         });
 
-    let expr_where_block = keyword(Token::Expr)
-        .ignore_then(newlines_req())
-        .then(expr.clone())
-        .then_ignore(newlines())
-        .then_ignore(keyword(Token::Where))
-        .then_ignore(newlines_req())
-        .then(declarations)
-        .map(|((_, body), bindings)| {
-            Block::ExprWhere(ExprWhereBlock {
-                body: Box::new(body),
-                bindings,
-            })
-        });
-
-    let block = choice((let_block, expr_where_block));
+    let block = let_block;
 
     block
         .separated_by(newlines_req())
@@ -218,9 +204,7 @@ mod tests {
         let Ast(blocks) = parse(&tokens).unwrap();
         assert_eq!(blocks.len(), 1);
 
-        let Block::Let(block) = &blocks[0] else {
-            panic!("expected let block");
-        };
+        let Block::Let(block) = &blocks[0];
         assert_eq!(block.bindings.len(), 1);
         assert_eq!(block.bindings[0].name, "Name");
         assert_eq!(block.bindings[0].value, Expr::Ident("String".to_string()));
@@ -238,9 +222,7 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0] else {
-            panic!("expected let block");
-        };
+        let Block::Let(block) = &blocks[0];
 
         assert_eq!(block.bindings[0].name, "closure");
         assert!(matches!(block.bindings[0].value, Expr::Lambda { .. }));
@@ -258,9 +240,7 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0] else {
-            panic!("expected let block");
-        };
+        let Block::Let(block) = &blocks[0];
 
         assert_eq!(block.bindings[0].name, "Name");
         let Expr::Prefix {
@@ -289,9 +269,7 @@ mod tests {
         "#);
 
         let Ast(blocks) = parse(&tokens).unwrap();
-        let Block::Let(block) = &blocks[0] else {
-            panic!("expected let block");
-        };
+        let Block::Let(block) = &blocks[0];
 
         assert!(matches!(
             block.bindings[0].value,
@@ -309,24 +287,4 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn expr_where() {
-        let tokens = lex(r#"
-            expr
-                name
-            where
-                name = 2
-        "#);
-
-        let Ast(blocks) = parse(&tokens).unwrap();
-        assert_eq!(blocks.len(), 1);
-
-        let Block::ExprWhere(block) = &blocks[0] else {
-            panic!("expected expr/where block");
-        };
-        assert_eq!(block.body.as_ref(), &Expr::Ident("name".to_string()));
-        assert_eq!(block.bindings.len(), 1);
-        assert_eq!(block.bindings[0].name, "name");
-        assert_eq!(block.bindings[0].value, Expr::Number("2".to_string()));
-    }
 }

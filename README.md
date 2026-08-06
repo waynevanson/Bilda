@@ -81,11 +81,6 @@ let
 in
   name3
 
-expr
-  thins
-where
-  thins = 2
-
 # Comment
 # Types are easy but what about real expressions?
 

@@ -14,9 +14,6 @@ pub enum Token {
     #[token("expr")]
     Expr,
 
-    #[token("where")]
-    Where,
-
     #[token("<")]
     AngleLeft,
 
@@ -327,32 +324,6 @@ mod test {
     }
 
     #[test]
-    fn expr_where_block() {
-        let input = r#"
-            expr
-                name
-            where
-                name = 2
-        "#;
-
-        let tokens = compute(input);
-        assert_eq!(
-            tokens,
-            vec![
-                Token::Expr,
-                Token::Newline,
-                id("name"),
-                Token::Newline,
-                Token::Where,
-                Token::Newline,
-                id("name"),
-                Token::Equal,
-                num("2"),
-            ]
-        );
-    }
-
-    #[test]
     fn readme_example() {
         let input = r#"
             let
@@ -380,18 +351,11 @@ mod test {
               ure = clos 5
             in
               Name1
-
-            expr
-              thins
-            where
-              thins = 2
         "#;
 
         let tokens = compute(input);
         assert!(tokens.contains(&Token::Let));
         assert!(tokens.contains(&Token::In));
-        assert!(tokens.contains(&Token::Expr));
-        assert!(tokens.contains(&Token::Where));
         assert!(tokens.contains(&Token::Tilde));
         assert!(tokens.contains(&Token::Plus));
         assert!(tokens.contains(&Token::Star));
