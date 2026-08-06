@@ -24,108 +24,110 @@ fn newlines_req<'src>() -> impl Parser<'src, Tok<'src>, (), Extra<'src>> + Clone
 }
 
 fn expr_parser<'src>() -> impl Parser<'src, Tok<'src>, Expr, Extra<'src>> + Clone {
-    recursive(|expr| {
-        let pratt_expr = recursive(|pratt_expr| {
-            let field = ident()
-                .then(just(Token::Equal).ignore_then(pratt_expr.clone()).or_not())
-                .map(|(name, value)| match value {
-                    Some(value) => Binding { name, value },
-                    None => Binding {
-                        name: name.clone(),
-                        value: Expr::Ident(name),
-                    },
-                });
-
-            let record = field
-                .repeated()
-                .collect::<Vec<_>>()
-                .then_ignore(newlines())
-                .delimited_by(
-                    just(Token::CurlyLeft).then_ignore(newlines()),
-                    just(Token::CurlyRight),
-                )
-                .map(Expr::Record);
-
-            let base = choice((
-                record,
-                select! { Token::Number(n) => Expr::Number(n) },
-                ident().map(Expr::Ident),
-                pratt_expr
-                    .clone()
-                    .delimited_by(just(Token::BracketLeft), just(Token::BracketRight)),
-            ));
-
-            base.pratt((
-                postfix(
-                    4,
-                    just(Token::DotSingle).ignore_then(ident()),
-                    |lhs, field, _| Expr::Access {
-                        target: Box::new(lhs),
-                        field,
-                        kind: AccessKind::Value,
-                    },
-                ),
-                postfix(
-                    4,
-                    just(Token::DoubleColon).ignore_then(ident()),
-                    |lhs, field, _| Expr::Access {
-                        target: Box::new(lhs),
-                        field,
-                        kind: AccessKind::Type,
-                    },
-                ),
-                prefix(3, just(Token::Tilde), |_, rhs, _| Expr::Prefix {
-                    op: PrefixOp::Annotation,
-                    expr: Box::new(rhs),
-                }),
-                prefix(3, just(Token::Plus), |_, rhs, _| Expr::Prefix {
-                    op: PrefixOp::Sum,
-                    expr: Box::new(rhs),
-                }),
-                prefix(3, just(Token::Star), |_, rhs, _| Expr::Prefix {
-                    op: PrefixOp::Product,
-                    expr: Box::new(rhs),
-                }),
-                prefix(3, just(Token::Minus), |_, rhs, _| Expr::Prefix {
-                    op: PrefixOp::Difference,
-                    expr: Box::new(rhs),
-                }),
-                infix(left(2), just(Token::Star), |l, _, r, _| Expr::Infix {
-                    op: InfixOp::Mul,
-                    left: Box::new(l),
-                    right: Box::new(r),
-                }),
-                infix(left(1), just(Token::Plus), |l, _, r, _| Expr::Infix {
-                    op: InfixOp::Add,
-                    left: Box::new(l),
-                    right: Box::new(r),
-                }),
-                infix(left(1), just(Token::Minus), |l, _, r, _| Expr::Infix {
-                    op: InfixOp::Sub,
-                    left: Box::new(l),
-                    right: Box::new(r),
-                }),
-            ))
-        });
-
-        let application = pratt_expr
-            .repeated()
-            .at_least(1)
-            .collect::<Vec<_>>()
-            .map(|atoms| {
-                let mut iter = atoms.into_iter();
-                let first = iter.next().unwrap();
-                iter.fold(first, |acc, arg| Expr::Apply {
-                    func: Box::new(acc),
-                    arg: Box::new(arg),
-                })
+    let pratt_expr = recursive(|pratt_expr| {
+        let field = ident()
+            .then(just(Token::Equal).ignore_then(pratt_expr.clone()).or_not())
+            .map(|(name, value)| match value {
+                Some(value) => Binding { name, value },
+                None => Binding {
+                    name: name.clone(),
+                    value: Expr::Ident(name),
+                },
             });
 
-        let lambda = ident()
+        let record = field
             .repeated()
-            .at_least(1)
             .collect::<Vec<_>>()
-            .then_ignore(just(Token::Arrow))
+            .then_ignore(newlines())
+            .delimited_by(
+                just(Token::CurlyLeft).then_ignore(newlines()),
+                just(Token::CurlyRight),
+            )
+            .map(Expr::Record);
+
+        let base = choice((
+            record,
+            select! { Token::Number(n) => Expr::Number(n) },
+            ident().map(Expr::Ident),
+            pratt_expr
+                .clone()
+                .delimited_by(just(Token::BracketLeft), just(Token::BracketRight)),
+        ));
+
+        base.pratt((
+            postfix(
+                4,
+                just(Token::DotSingle).ignore_then(ident()),
+                |lhs, field, _| Expr::Access {
+                    target: Box::new(lhs),
+                    field,
+                    kind: AccessKind::Value,
+                },
+            ),
+            postfix(
+                4,
+                just(Token::DoubleColon).ignore_then(ident()),
+                |lhs, field, _| Expr::Access {
+                    target: Box::new(lhs),
+                    field,
+                    kind: AccessKind::Type,
+                },
+            ),
+            prefix(3, just(Token::Tilde), |_, rhs, _| Expr::Prefix {
+                op: PrefixOp::Annotation,
+                expr: Box::new(rhs),
+            }),
+            prefix(3, just(Token::Plus), |_, rhs, _| Expr::Prefix {
+                op: PrefixOp::Sum,
+                expr: Box::new(rhs),
+            }),
+            prefix(3, just(Token::Star), |_, rhs, _| Expr::Prefix {
+                op: PrefixOp::Product,
+                expr: Box::new(rhs),
+            }),
+            prefix(3, just(Token::Minus), |_, rhs, _| Expr::Prefix {
+                op: PrefixOp::Difference,
+                expr: Box::new(rhs),
+            }),
+            infix(left(2), just(Token::Star), |l, _, r, _| Expr::Infix {
+                op: InfixOp::Mul,
+                left: Box::new(l),
+                right: Box::new(r),
+            }),
+            infix(left(1), just(Token::Plus), |l, _, r, _| Expr::Infix {
+                op: InfixOp::Add,
+                left: Box::new(l),
+                right: Box::new(r),
+            }),
+            infix(left(1), just(Token::Minus), |l, _, r, _| Expr::Infix {
+                op: InfixOp::Sub,
+                left: Box::new(l),
+                right: Box::new(r),
+            }),
+        ))
+    });
+
+    let application = pratt_expr
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .map(|atoms| {
+            let mut iter = atoms.into_iter();
+            let first = iter.next().unwrap();
+            iter.fold(first, |acc, arg| Expr::Apply {
+                func: Box::new(acc),
+                arg: Box::new(arg),
+            })
+        });
+
+    let lambda = ident()
+        .repeated()
+        .at_least(1)
+        .collect::<Vec<_>>()
+        .then_ignore(just(Token::Arrow));
+
+    recursive(|expr| {
+        let lambda = lambda
             .then(expr.clone())
             .map(|(params, body)| Expr::Lambda {
                 params,
