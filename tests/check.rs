@@ -66,14 +66,25 @@ fn check_missing_file_fails() {
 }
 
 #[test]
-fn run_todos() {
+fn run_good_file_prints_value() {
     let output = bin()
         .arg("run")
         .arg("tests/fixtures/good.bilda")
         .output()
         .unwrap();
 
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("not yet implemented"));
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "1");
+}
+
+#[test]
+fn run_echoehco_file_prints_value() {
+    let output = bin()
+        .arg("run")
+        .arg("tests/fixtures/echoehco.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "32");
 }
