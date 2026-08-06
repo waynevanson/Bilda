@@ -1,4 +1,4 @@
 let
   x =
-in
+expr
   x

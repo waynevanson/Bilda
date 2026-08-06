@@ -156,7 +156,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
         .ignore_then(newlines_req())
         .then(declarations.clone())
         .then_ignore(newlines())
-        .then_ignore(keyword(Token::In))
+        .then_ignore(keyword(Token::Expr))
         .then_ignore(newlines_req())
         .then(expr.clone())
         .map(|((_, bindings), body)| {
@@ -193,11 +193,11 @@ mod tests {
     }
 
     #[test]
-    fn let_in() {
+    fn let_expr() {
         let tokens = lex(r#"
             let
                 Name = String
-            in
+            expr
                 Name
         "#);
 
@@ -217,7 +217,7 @@ mod tests {
             let
                 closure = x y => x * y
                 answer = closure 6 7
-            in
+            expr
                 answer
         "#);
 
@@ -235,7 +235,7 @@ mod tests {
         let tokens = lex(r#"
             let
                 Name = + { First = String Second = String }
-            in
+            expr
                 Name
         "#);
 
@@ -264,7 +264,7 @@ mod tests {
             let
                 type_access = Name::First
                 value_access = Name.First
-            in
+            expr
                 value_access
         "#);
 

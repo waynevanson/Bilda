@@ -8,9 +8,6 @@ pub enum Token {
     #[token("let")]
     Let,
 
-    #[token("in")]
-    In,
-
     #[token("expr")]
     Expr,
 
@@ -298,11 +295,11 @@ mod test {
     }
 
     #[test]
-    fn let_in_block() {
+    fn let_expr_block() {
         let input = r#"
             let
                 Name = String
-            in
+            expr
                 Name
         "#;
 
@@ -316,7 +313,7 @@ mod test {
                 Token::Equal,
                 id("String"),
                 Token::Newline,
-                Token::In,
+                Token::Expr,
                 Token::Newline,
                 id("Name"),
             ]
@@ -349,13 +346,13 @@ mod test {
               closure = x y => x * y
               clos = x => closure 3
               ure = clos 5
-            in
+            expr
               Name1
         "#;
 
         let tokens = compute(input);
         assert!(tokens.contains(&Token::Let));
-        assert!(tokens.contains(&Token::In));
+        assert!(tokens.contains(&Token::Expr));
         assert!(tokens.contains(&Token::Tilde));
         assert!(tokens.contains(&Token::Plus));
         assert!(tokens.contains(&Token::Star));
