@@ -1,0 +1,5 @@
+vars
+  x = 2
+  y = 3
+expr
+  x + y * 4
