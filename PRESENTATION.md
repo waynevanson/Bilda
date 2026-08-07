@@ -1,31 +1,69 @@
-## Introduction
+## Notes
 
-How many programming languages do you think you've used?
+## Presentation
 
-Keep your hands raise until the number you know is not as big as the number I say.
+### Breakdown
 
-Today we're going on a journey.
+Let's break down implementing a programming language.
 
-We'll implement a language based on our design in Rust.
+Our signature is essentially `Text -> Effect`.
 
-The focus isn't so much the language, so don't worry about if you think this is a good or bad idea.
+Transformers required to get between each step.
 
-1. Language design considerations.
-2. Developer experience.
-3. Ecoystem compatibility.
-4. Functionality.
-5. Use cases.
-6. Performance.
-7. Strictness.
-8. Control.
-9. Explicitness.
+Constructs Presumably agreed to be valuable after decades of research.
 
-## Features
+#### Interpreted
 
-These are features we've seen in programming languages.
+Transformers.
 
-1. Functions.
-2. Modules.
-3. Classes.
-4. Lambdas.
-5. Strict.
+```
+Interpeter -> Effect
+(
+  Lexer(Text) -> Tokens
+  Parser(Tokens) -> AbstractSyntaxTree
+  Runtime(AbstractSyntaxTree) -> Effect
+)
+```
+
+> Note: How you understand this syntax is different from other languages "\n"
+
+#### Compiled
+
+Transformers.
+
+```
+Compiler -> Executable
+(
+  Lexer(Text) -> Tokens
+  Parser(Tokens) -> AbstractSyntaxTree
+  Compiler(AbstractSyntaxTree) -> IntermediateRepresentation
+  Compiler(IntermediateRepresentation) -> Executable
+)
+
+Executable -> Effect
+```
+
+### Lexer
+
+Transforms text into tokens.
+
+`Lexer(Text) -> Tokens`
+
+1. Groups characters.
+2. Categorizes groups.
+
+`Logos` is a macro-based rust crate that constructs a Lexer, which we can then apply to the Text to create Tokens.
+
+1. Order unimportant.
+2. Allows you to skip irrelevant tokens like spaces.
+3. Context is minimal - switch between lexers for different cases.
+
+### Parser
+
+Transforms tokens into an AST.
+
+`Parser(Tokens) -> AbstractSyntaxTree`
+
+1. Precedence.
+2. Recursive descent.
+3.

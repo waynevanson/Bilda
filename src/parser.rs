@@ -195,11 +195,7 @@ fn program_parser<'src>() -> impl Parser<'src, Tok<'src>, Ast, Extra<'src>> + Cl
 
     let use_block = keyword(Token::Uses)
         .ignore_then(newlines_req())
-        .then(
-            import
-                .separated_by(newlines_req())
-                .collect::<Vec<_>>(),
-        )
+        .then(import.separated_by(newlines_req()).collect::<Vec<_>>())
         .map(|(_, imports)| Block::Use(UseBlock { imports }));
 
     let block = choice((use_block, type_block, vars_block));
@@ -351,15 +347,9 @@ mod tests {
         };
         assert_eq!(type_block.bindings.len(), 2);
         assert_eq!(type_block.bindings[0].name, "A");
-        assert_eq!(
-            type_block.bindings[0].value,
-            Expr::Ident("u32".to_string())
-        );
+        assert_eq!(type_block.bindings[0].value, Expr::Ident("u32".to_string()));
         assert_eq!(type_block.bindings[1].name, "B");
-        assert_eq!(
-            type_block.bindings[1].value,
-            Expr::Ident("u64".to_string())
-        );
+        assert_eq!(type_block.bindings[1].value, Expr::Ident("u64".to_string()));
 
         let Block::Let(let_block) = &blocks[1] else {
             panic!("expected vars block");
@@ -393,5 +383,4 @@ mod tests {
         assert_eq!(use_block.imports[0].module, "std");
         assert_eq!(use_block.imports[0].names, vec!["echo"]);
     }
-
 }
