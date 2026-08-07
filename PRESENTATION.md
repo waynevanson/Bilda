@@ -47,7 +47,10 @@ Executable -> Effect
 
 Transforms text into tokens.
 
-`Lexer(Text) -> Tokens`
+```
+Lexer -> Tokens
+(Text)
+```
 
 1. Groups characters.
 2. Categorizes groups.
@@ -62,8 +65,30 @@ Transforms text into tokens.
 
 Transforms tokens into an AST.
 
-`Parser(Tokens) -> AbstractSyntaxTree`
+```
+Parser -> AbstractSyntaxTree
+(Tokens)
+```
+
+1. Group tokens between other tokens.
+2. Categorizes groups.
+
+`Chumsky` (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
 
 1. Precedence.
 2. Recursive descent.
-3.
+3. Applies grammar (syntax) rules.
+4. Create data so we can understand how to execute.
+5. Code execution paths
+
+### Intepreter
+
+The heart and soul.
+
+```
+Interpreter -> Effect
+(AbstractSyntaxTree)
+
+```
+
+### Compiler

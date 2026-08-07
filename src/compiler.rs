@@ -28,8 +28,7 @@ impl Compiler {
             0
         }
 
-        let mut builder =
-            JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
+        let mut builder = JITBuilder::with_isa(isa, cranelift_module::default_libcall_names());
         builder.symbol("echo", bilda_echo as *const u8);
         let module = JITModule::new(builder);
 
@@ -178,8 +177,7 @@ fn compile_expr(
                     Some(ModuleBinding::Function(func_id)) => {
                         let (arg_value, _) =
                             compile_expr(arg, builder, module, local_env, module_env)?;
-                        let func_ref =
-                            module.declare_func_in_func(*func_id, builder.func);
+                        let func_ref = module.declare_func_in_func(*func_id, builder.func);
                         let call = builder.ins().call(func_ref, &[arg_value]);
                         let value = builder.inst_results(call)[0];
                         Ok((value, false))
