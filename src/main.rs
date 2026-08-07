@@ -3,7 +3,6 @@ use std::process;
 
 use bilda::lexer::Token;
 use bilda::parser;
-use bilda::runtime;
 use clap::{Parser, Subcommand};
 use logos::Logos;
 
@@ -18,7 +17,6 @@ struct Args {
 enum Command {
     Check { file: String },
     Run { file: String },
-    Jit { file: String },
 }
 
 fn main() {
@@ -27,7 +25,6 @@ fn main() {
     match args.command {
         Command::Check { file } => check(&file),
         Command::Run { file } => run(&file),
-        Command::Jit { file } => jit(&file),
     }
 }
 
@@ -60,29 +57,19 @@ fn check(path: &str) {
 fn run(path: &str) {
     let ast = parse(path);
 
-    match runtime::run(&ast) {
-        Ok(runtime::Value::Unit) => {}
-        Ok(value) => println!("{value}"),
-        Err(error) => {
-            eprintln!("runtime error: {error}");
-            process::exit(1);
-        }
-    }
-}
-
-fn jit(path: &str) {
-    let ast = parse(path);
-
     let func = bilda::compiler::Compiler::new()
         .and_then(|mut compiler| compiler.compile(&ast))
         .unwrap_or_else(|error| {
-            eprintln!("jit error: {error}");
+            eprintln!("run error: {error}");
             process::exit(1);
         });
 
     let (value, tag) = func();
-    if tag != 0 {
-        println!("{value}");
+    match tag {
+        0 => {}
+        1 => println!("{value}"),
+        2 => println!("<closure>"),
+        _ => println!("<unknown>"),
     }
 }
 

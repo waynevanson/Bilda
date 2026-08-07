@@ -6,9 +6,9 @@ fn bin() -> Command {
 }
 
 #[test]
-fn jit_good_file_prints_value() {
+fn run_good_file_prints_value_via_jit() {
     let output = bin()
-        .arg("jit")
+        .arg("run")
         .arg("tests/fixtures/good.bilda")
         .output()
         .unwrap();
@@ -18,9 +18,9 @@ fn jit_good_file_prints_value() {
 }
 
 #[test]
-fn jit_arithmetic_file_prints_value() {
+fn run_arithmetic_file_prints_value_via_jit() {
     let output = bin()
-        .arg("jit")
+        .arg("run")
         .arg("tests/fixtures/arithmetic.bilda")
         .output()
         .unwrap();
@@ -30,13 +30,49 @@ fn jit_arithmetic_file_prints_value() {
 }
 
 #[test]
-fn jit_echoehco_file_prints_value() {
+fn run_echoehco_file_prints_value_via_jit() {
     let output = bin()
-        .arg("jit")
+        .arg("run")
         .arg("tests/fixtures/echoehco.bilda")
         .output()
         .unwrap();
 
     assert!(output.status.success());
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "32");
+}
+
+#[test]
+fn run_lambda_file_prints_value() {
+    let output = bin()
+        .arg("run")
+        .arg("tests/fixtures/lambda.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "42");
+}
+
+#[test]
+fn run_lambda_partial_file_prints_value() {
+    let output = bin()
+        .arg("run")
+        .arg("tests/fixtures/lambda_partial.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "15");
+}
+
+#[test]
+fn run_lambda_capture_file_prints_value() {
+    let output = bin()
+        .arg("run")
+        .arg("tests/fixtures/lambda_capture.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "15");
 }

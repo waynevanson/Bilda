@@ -166,7 +166,11 @@ fn eval_expr(expr: &Expr, env: &Rc<Env>) -> Result<Value, RuntimeError> {
             body: body.as_ref().clone(),
             env: Rc::clone(env),
         }),
-        Expr::Access { target, field, kind } => {
+        Expr::Access {
+            target,
+            field,
+            kind,
+        } => {
             let target = eval_expr(target, env)?;
             access(target, field, kind)
         }
@@ -199,11 +203,7 @@ fn apply(func: Value, arg: Value) -> Result<Value, RuntimeError> {
             if params.is_empty() {
                 eval_expr(&body, &env)
             } else {
-                Ok(Value::Closure {
-                    params,
-                    body,
-                    env,
-                })
+                Ok(Value::Closure { params, body, env })
             }
         }
         Value::TypeConstructor(name) => Ok(Value::TypeInstance(name, Box::new(arg))),
@@ -236,7 +236,7 @@ fn infix(op: InfixOp, left: Value, right: Value) -> Result<Value, RuntimeError> 
         _ => {
             return Err(RuntimeError(format!(
                 "cannot apply arithmetic to {left} and {right}"
-            )))
+            )));
         }
     };
 
