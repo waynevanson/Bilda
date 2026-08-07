@@ -80,7 +80,10 @@ fn jit(path: &str) {
             process::exit(1);
         });
 
-    println!("{}", func());
+    let (value, tag) = func();
+    if tag != 0 {
+        println!("{value}");
+    }
 }
 
 fn parse(path: &str) -> bilda::ast::Ast {

@@ -28,3 +28,15 @@ fn jit_arithmetic_file_prints_value() {
     assert!(output.status.success());
     assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "14");
 }
+
+#[test]
+fn jit_echoehco_file_prints_value() {
+    let output = bin()
+        .arg("jit")
+        .arg("tests/fixtures/echoehco.bilda")
+        .output()
+        .unwrap();
+
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "32");
+}
