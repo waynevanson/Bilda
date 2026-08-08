@@ -1,3 +1,30 @@
+---
+marp: true
+theme: catppuccin-mocha
+paginate: true
+header: >
+  Rust for programming languages
+  |
+  Wayne Van Son
+transition: implode 0.1s
+---
+
+# Rust
+
+The language for languages
+
+<sub>Wayne Van Son</sub>
+
+---
+
+### Inspiration
+
+1. Cormack's presentation of build system `buck2`
+2. Languages have trade-offs — best bang for your `buck2`
+3.
+
+---
+
 ## Notes
 
 ## Language Goals

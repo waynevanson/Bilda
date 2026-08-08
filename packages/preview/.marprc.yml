@@ -1,0 +1,6 @@
+allowLocalFiles: true
+themeSet:
+  - "./themes/catppuccin_latte.css"
+  - "./themes/catppuccin_frappe.css"
+  - "./themes/catppuccin_macchiato.css"
+  - "./themes/catppuccin_mocha.css"
