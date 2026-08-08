@@ -1,6 +1,47 @@
 ## Notes
 
+## Language Goals
+
+Make creating build systems easier.
+
+### Ecosystem issues
+
+1. Hot reload (dev mode, watch mode, test mode)
+   1. Requires different script execution compared to build mode.
+   2. Painful to setup, language dependent, nothing talks the same way.
+   3. Rust into JS ecosystem? Easier to to neck yourself.
+2. Multi import using globs? Barrel imports without setting up breweries.
+3. Lockfile - Local system knows what artifacts to expect and when.
+4. Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
+5. Hermetic - Same every run.
+   1. Same packages and setup every time.
+   2. What are my artifacts actually? Remove tracked artifacts before build. Get intellisense?
+
+### Solvable with language design
+
+Maybe. All solvable without language design but requires tooling.
+
+Could anything be solved with language design?
+
+A language that is best for plugin systems?
+
+```
+
+
+```
+
+Features
+
+1. Glob as a built in construct.
+2. Globs have a lock file that are hashed?
+3. Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
+4. How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
+
 ## Presentation
+
+### Todos
+
+1. You can be anything, like that comedian.
 
 ### Breakdown
 
@@ -81,14 +122,19 @@ Parser -> AbstractSyntaxTree
 4. Create data so we can understand how to execute.
 5. Code execution paths
 
+TODODODOO
+
+two paths, we show compiler and interpreter then we say a thirdish.
+
 ### Intepreter
 
-The heart and soul.
+The heart and soul, get's things done.
 
 ```
 Interpreter -> Effect
 (AbstractSyntaxTree)
-
 ```
+
+`Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
 
 ### Compiler
