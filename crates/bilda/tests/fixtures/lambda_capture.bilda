@@ -1,0 +1,6 @@
+vars
+  make_add = n => x => n + x
+  add5 = make_add 5
+  answer = add5 10
+expr
+  answer

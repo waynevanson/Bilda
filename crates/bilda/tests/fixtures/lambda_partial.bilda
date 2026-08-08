@@ -1,0 +1,6 @@
+vars
+  mul = x y => x * y
+  triple = mul 3
+  answer = triple 5
+expr
+  answer
