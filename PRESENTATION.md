@@ -43,6 +43,17 @@ Features
 
 1. You can be anything, like that comedian.
 
+### Vibes
+
+We've all used programming languages.
+It's more than just executable text, it's a feeling.
+
+### Star Factor
+
+What makes a language stand out?
+
+1.
+
 ### Breakdown
 
 Let's break down implementing a programming language.

@@ -1,22 +1,22 @@
-import mermaid from 'mermaid'
-import diagram from '../state.mermaid?raw'
+import { Marp } from '@marp-team/marp-core'
+import slides from '../PRESENTATION.md?raw'
 
 const app = document.getElementById('app')
 
-async function render(src = diagram) {
+function render(src = slides) {
   try {
-    const { svg } = await mermaid.render('diagram', src)
-    app.innerHTML = svg
+    const marp = new Marp()
+    const { html, css } = marp.render(src)
+    app.innerHTML = `<style>${css}</style>${html}`
   } catch (err) {
     app.innerHTML = `<pre style="color:red">${err.message}</pre>`
   }
 }
 
-mermaid.initialize({ startOnLoad: false })
 render()
 
 if (import.meta.hot) {
-  import.meta.hot.accept('../state.mermaid?raw', (mod) => {
+  import.meta.hot.accept('../PRESENTATION.md?raw', (mod) => {
     render(mod.default)
   })
 }
