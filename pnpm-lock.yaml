@@ -6,7 +6,7 @@ settings:
 
 importers:
 
-  .:
+  packages/preview:
     dependencies:
       '@marp-team/marp-core':
         specifier: ^4.4.0

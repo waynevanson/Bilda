@@ -1,13 +1,3 @@
-[package]
-name = "bilda"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-chumsky = { version = "1.0.0-alpha.8", features = ["pratt", "unstable"] }
-clap = { version = "4.5.27", features = ["derive"] }
-cranelift = "0.116"
-cranelift-jit = "0.116"
-cranelift-module = "0.116"
-cranelift-native = "0.116"
-logos = "0.16.1"
+[workspace]
+members = ["crates/*"]
+resolver = "3"
