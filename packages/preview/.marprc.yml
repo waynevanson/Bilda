@@ -1,4 +1,5 @@
 allowLocalFiles: true
+engine: ./engine.mjs
 themeSet:
   - "./themes/catppuccin_latte.css"
   - "./themes/catppuccin_frappe.css"

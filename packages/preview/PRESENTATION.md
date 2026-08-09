@@ -1,12 +1,14 @@
 ---
 marp: true
-theme: catppuccin-mocha
+# theme: catppuccin-mocha
+theme: default
 paginate: true
+# element-transition: fade 0.1s
 header: >
   Rust for programming languages
   |
   Wayne Van Son
-transition: implode 0.1s
+transition: fade 0.1s
 ---
 
 # Rust
@@ -19,38 +21,93 @@ The language for languages
 
 ### Inspiration
 
-1. Cormack's presentation of build system `buck2`
-2. Languages have trade-offs — best bang for your `buck2`
-3.
+1. Cormack's presentation — Build system tool `buck2`
+2. Language trade-offs
+   - Interesting
+   - Best bang for your `buck2`
+3. Tim
+   - `buck2`
+   - ?
 
 ---
 
-## Notes
+## Language design
 
-## Language Goals
+Build systems.
 
-Make creating build systems easier.
+1. Language goals
+2. Existing issues
+3. Possible solutions
+
+---
+
+## Language Goal
+
+Make managing build systems easier.
+
+<!-- What's hard? -->
+
+---
+
+### Existing issues
+
+#### Hot Reload
+
+Hot reload/Interactive (dev mode, watch mode, test mode)
+
+Issues
+
+1.  Requires different script execution compared to build mode.
+2.  Painful to setup, language dependent, nothing talks the same way.
+3.  Rust into JS ecosystem? Easier to to neck yourself.
+
+---
+
+### Analysis of existing use
+
+```yaml
+tasks:
+  build:
+    dependencies:
+      self:
+        - build
+      downstream:
+        - test
+    inputs:
+      env:
+        - $DEFAULTS
+        - CI
+      params:
+        mode: production
+  test:
+```
+
+<!-- What can we do better? -->
+
+---
 
 ### Ecosystem issues
 
-1. Hot reload (dev mode, watch mode, test mode)
-   1. Requires different script execution compared to build mode.
-   2. Painful to setup, language dependent, nothing talks the same way.
-   3. Rust into JS ecosystem? Easier to to neck yourself.
-2. Multi import using globs? Barrel imports without setting up breweries.
-3. Lockfile - Local system knows what artifacts to expect and when.
-4. Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
-5. Hermetic - Same every run.
+1. Multi import using globs? Barrel imports without setting up breweries.
+2. Lockfile - Local system knows what artifacts to expect and when.
+3. Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
+4. Hermetic - Same every run.
    1. Same packages and setup every time.
    2. What are my artifacts actually? Remove tracked artifacts before build. Get intellisense?
 
-### Solvable with language design
+---
+
+### Solvable with language design?
 
 Maybe. All solvable without language design but requires tooling.
 
 Could anything be solved with language design?
 
-A language that is best for plugin systems?
+Languages are complementary to the goal.
+
+---
+
+## A language that is best for plugin systems?
 
 ```
 
@@ -64,22 +121,27 @@ Features
 3. Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
 4. How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
 
-## Presentation
+<!--1. You can be anything, like that comedian.-->
 
-### Todos
-
-1. You can be anything, like that comedian.
+---
 
 ### Vibes
 
 We've all used programming languages.
 It's more than just executable text, it's a feeling.
 
+---
+
 ### Star Factor
 
 What makes a language stand out?
 
-1.
+1. Tooling & Experience
+   1. LSP
+   2. Dependencies
+   3. Constraints
+
+---
 
 ### Breakdown
 
@@ -90,6 +152,8 @@ Our signature is essentially `Text -> Effect`.
 Transformers required to get between each step.
 
 Constructs Presumably agreed to be valuable after decades of research.
+
+---
 
 #### Interpreted
 
@@ -106,6 +170,8 @@ Interpeter -> Effect
 
 > Note: How you understand this syntax is different from other languages "\n"
 
+---
+
 #### Compiled
 
 Transformers.
@@ -121,6 +187,8 @@ Compiler -> Executable
 
 Executable -> Effect
 ```
+
+---
 
 ### Lexer
 
@@ -139,6 +207,8 @@ Lexer -> Tokens
 1. Order unimportant.
 2. Allows you to skip irrelevant tokens like spaces.
 3. Context is minimal - switch between lexers for different cases.
+
+---
 
 ### Parser
 
@@ -164,6 +234,8 @@ TODODODOO
 
 two paths, we show compiler and interpreter then we say a thirdish.
 
+---
+
 ### Intepreter
 
 The heart and soul, get's things done.
@@ -174,5 +246,7 @@ Interpreter -> Effect
 ```
 
 `Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
+
+---
 
 ### Compiler
