@@ -1,13 +1,9 @@
 ---
 marp: true
-# theme: catppuccin-mocha
-theme: default
+theme: catppuccin-mocha
 paginate: true
-# element-transition: fade 0.1s
-header: >
-  Rust for programming languages
-  |
-  Wayne Van Son
+header: |
+  Rust for programming languages | Wayne Van Son
 transition: fade 0.1s
 ---
 
@@ -28,6 +24,10 @@ The language for languages
 3. Tim
    - `buck2`
    - ?
+   - Timbuktu
+   - ...
+
+<!-- Where is TimBuckToo -->
 
 ---
 
@@ -49,9 +49,7 @@ Make managing build systems easier.
 
 ---
 
-### Existing issues
-
-#### Hot Reload
+#### Issue - Hot Reload
 
 Hot reload/Interactive (dev mode, watch mode, test mode)
 
@@ -67,22 +65,93 @@ Issues
 
 ```yaml
 tasks:
-  build:
-    dependencies:
-      self:
-        - build
-      downstream:
-        - test
-    inputs:
-      env:
-        - $DEFAULTS
-        - CI
-      params:
-        mode: production
+  dev:
+    persistent: true
   test:
+  lint:
+  build:
+    dependsOn: ["build", "^lint", "^test"] # strings for tasks, ^ syntax
+    inputs:
+      files: ["./src/**.rs"] # strings for globs
+      env: ["$DEFAULTS", "CI"] # rando vars
+    outputs: ["./target/{target.platform}/[name].ts"] # rando vars
+    scripts:
+      - parallel: true # poor concurrency control and explicitness?
+        exec: ["./scripts/migrate.sh"] # importing shell scripts is the best?
 ```
 
 <!-- What can we do better? -->
+
+---
+
+| Problem                                   | Solution                                 | Example                                 |
+| :---------------------------------------- | :--------------------------------------- | :-------------------------------------- |
+| Strings for globs                         | Primitive attached to lockfile           | `./src/**/*.rs`                         |
+| Strings for tasks                         | Reference existing tasks                 | `build.deps.downstream = [tasks.tests]` |
+| Strings for tasks                         | Allow glob-like destructure              | `build.deps.downstream = tasks.{tests}` |
+| Explicit dependencies express difficultly | Explicit combination syntax for features | Something like a glob!                  |
+| `^[task]` syntax for dep reference        | Reference dep in diff prop               | `build.deps.self = self.build`          |
+| Rando variables                           | Explicit access via scoped as closure    | `(vars) => vars.defaults{CI}`           |
+| Rando variables                           | Range index                              | `(vars) => vars.all{CI}`                |
+| Concurency                                | Keywords                                 | `exec (limit = 8)`                      |
+| Concurency                                | Defaults                                 | Parallel by default                     |
+| Concurency                                | ? Constraints                            |                                         |
+
+---
+
+### Proposal
+
+```
+tasks:
+  dev:
+    persistent: true
+  test:
+  build:
+    depends:
+      self: [&tasks.build]
+      down: &tasks{lint, test}
+    inputs:
+      files: ./src/**.rs
+      env: &vars
+        => vars.defaults{*}
+        ++ vars.all{ci}
+    outputs:
+      - &vars => ./target/{vars.target.platform}/{vars.projectName}
+    scripts:
+      - parallel: true # poor concurrency control and explicitness?
+        exec: ["./scripts/migrate.sh"]
+```
+
+---
+
+What about scripting?
+
+Writing scripts sucks balls. Concurrency composition sucks. No way to control or delegate it really.
+
+1. defaults - parallel
+
+new lines are series by default. Imagine if they weren't?
+
+```
+
+# controls kids
+series [
+  ./thing.sh
+  ./thing.sh
+  ./thing.sh
+]
+
+# controls kids
+parallel [
+  ./thing.sh
+  ./thing.sh
+  ./thing.sh
+]
+
+# tells daddy
+only always [./thing.sh]
+
+```
 
 ---
 
@@ -94,6 +163,7 @@ tasks:
 4. Hermetic - Same every run.
    1. Same packages and setup every time.
    2. What are my artifacts actually? Remove tracked artifacts before build. Get intellisense?
+5. Syntax for concurrency? Gotta be easier than this shit.
 
 ---
 
@@ -108,11 +178,6 @@ Languages are complementary to the goal.
 ---
 
 ## A language that is best for plugin systems?
-
-```
-
-
-```
 
 Features
 

@@ -1,171 +1,171 @@
 /* @theme catppuccin-mocha */
 
-@import 'default';
+@import "default";
 
 :root {
-    --ctp-rosewater: #f5e0dc;
-    --ctp-flamingo: #f2cdcd;
-    --ctp-pink: #f5c2e7;
-    --ctp-mauve: #cba6f7;
-    --ctp-red: #f38ba8;
-    --ctp-maroon: #eba0ac;
-    --ctp-peach: #fab387;
-    --ctp-yellow: #f9e2af;
-    --ctp-green: #a6e3a1;
-    --ctp-teal: #94e2d5;
-    --ctp-sky: #89dceb;
-    --ctp-sapphire: #74c7ec;
-    --ctp-blue: #89b4fa;
-    --ctp-lavender: #b4befe;
-    --ctp-text: #cdd6f4;
-    --ctp-subtext1: #bac2de;
-    --ctp-subtext0: #a6adc8;
-    --ctp-overlay2: #9399b2;
-    --ctp-overlay1: #7f849c;
-    --ctp-overlay0: #6c7086;
-    --ctp-surface2: #585b70;
-    --ctp-surface1: #45475a;
-    --ctp-surface0: #313244;
-    --ctp-base: #1e1e2e;
-    --ctp-mantle: #181825;
-    --ctp-crust: #11111b;
+	--ctp-rosewater: #f5e0dc;
+	--ctp-flamingo: #f2cdcd;
+	--ctp-pink: #f5c2e7;
+	--ctp-mauve: #cba6f7;
+	--ctp-red: #f38ba8;
+	--ctp-maroon: #eba0ac;
+	--ctp-peach: #fab387;
+	--ctp-yellow: #f9e2af;
+	--ctp-green: #a6e3a1;
+	--ctp-teal: #94e2d5;
+	--ctp-sky: #89dceb;
+	--ctp-sapphire: #74c7ec;
+	--ctp-blue: #89b4fa;
+	--ctp-lavender: #b4befe;
+	--ctp-text: #cdd6f4;
+	--ctp-subtext1: #bac2de;
+	--ctp-subtext0: #a6adc8;
+	--ctp-overlay2: #9399b2;
+	--ctp-overlay1: #7f849c;
+	--ctp-overlay0: #6c7086;
+	--ctp-surface2: #585b70;
+	--ctp-surface1: #45475a;
+	--ctp-surface0: #313244;
+	--ctp-base: #1e1e2e;
+	--ctp-mantle: #181825;
+	--ctp-crust: #11111b;
 }
 
- 
 section {
-    font-family: "Arial", "Hiragino Maru Gothic ProN";
-    font-size: 32px;
-    padding: 40px;
+	font-family: "Arial", "Hiragino Maru Gothic ProN";
+	font-size: 32px;
+	padding: 40px;
 
-    background-color: var(--ctp-base);
-    color: var(--ctp-text);
+	background-color: var(--ctp-base);
+	color: var(--ctp-text);
 }
 
 section.title h1 {
-    color: var(--ctp-blue);
-    font-family: "Arial", "Hiragino Kaku Gothic ProN";
-    font-size: 60px;
-    text-align: center;
+	color: var(--ctp-blue);
+	font-family: "Arial", "Hiragino Kaku Gothic ProN";
+	font-size: 60px;
+	text-align: center;
 }
 
 section.slides {
-    padding-top: 90px;
-    padding-left: 40px;
-    padding-right: 40px;
+	padding-top: 90px;
+	padding-left: 40px;
+	padding-right: 40px;
 }
 
 section.slides h1:nth-of-type(1) {
-    color: var(--ctp-crust);
-    background-color: var(--ctp-teal);
-    border-top: 0.3em solid var(--ctp-sky);
-    padding: 0;
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100%;
-    height: 1.5em;
-    text-indent: 0.5em;
+	color: var(--ctp-crust);
+	background-color: var(--ctp-teal);
+	border-top: 0.3em solid var(--ctp-sky);
+	padding: 0;
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 100%;
+	height: 1.5em;
+	text-indent: 0.5em;
 }
 
 section.slides h2 {
-    font-size: 32px;
-    color: var(--ctp-blue);
-    position: absolute;
-    left: 50px; top: 90px;
+	font-size: 32px;
+	color: var(--ctp-blue);
+	position: absolute;
+	left: 50px;
+	top: 90px;
 }
 
 .callout {
-    position: relative;
-    padding: 20px;
-    border: 2px solid var(--ctp-red);
-    border-radius: 15px;
-    background-color: var(--ctp-surface0);
-    font-size: 36px;
-    color: var(--ctp-text);
+	position: relative;
+	padding: 20px;
+	border: 2px solid var(--ctp-red);
+	border-radius: 15px;
+	background-color: var(--ctp-surface0);
+	font-size: 36px;
+	color: var(--ctp-text);
 }
 
 .callout::before {
-    position: sticky;
-    content: attr(icon);
-    top: 5px;
-    left: 5px;
-    font-size: 36px;
-    color: var(--ctp-sky);
+	position: sticky;
+	content: attr(icon);
+	top: 5px;
+	left: 5px;
+	font-size: 36px;
+	color: var(--ctp-sky);
 }
-
 
 /* コードブロック全体 */
 pre {
-    background-color: var(--ctp-mantle);
-    border: 1px solid var(--ctp-surface0);
-    border-radius: 8px;
-    padding: 20px;
-    margin: 20px 0;
-    overflow-x: auto;
+	background-color: var(--ctp-mantle);
+	border: 1px solid var(--ctp-surface0);
+	border-radius: 8px;
+	padding: 20px;
+	margin: 20px 0;
+	overflow-x: auto;
 }
 
 code {
-    font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-    color: var(--ctp-text);
+	font-family: "Menlo", "Monaco", "Courier New", monospace;
+	color: var(--ctp-text);
 }
 
 :not(pre) > code {
-    background-color: var(--ctp-surface0);
-    color: var(--ctp-peach);
-    padding: 0.2em 0.4em;
-    border-radius: 4px;
-    font-size: 0.9em;
+	background-color: var(--ctp-surface0);
+	color: var(--ctp-peach);
+	padding: 0.2em 0.4em;
+	border-radius: 4px;
+	font-size: 0.9em;
 }
 
 table {
-    border-collapse: separate;
-    border-spacing: 0;
-    margin: 1em auto;
-    
-    border: 1px solid var(--ctp-surface0);
-    
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-    
-    font-size: 0.9em;
+	border-collapse: separate;
+	border-spacing: 0;
+	margin: 1em auto;
+
+	border: 1px solid var(--ctp-surface0);
+
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+
+	font-size: 0.9em;
 }
 
 /* 表形式 */
 th {
-    background-color: var(--ctp-mantle);
-    color: var(--ctp-mauve);
-    font-weight: bold;
-    padding: 15px 20px;
-    text-align: left;
-    border-bottom: 2px solid var(--ctp-surface1);
+	background-color: var(--ctp-mantle);
+	color: var(--ctp-mauve);
+	font-weight: bold;
+	padding: 15px 20px;
+	text-align: left;
+	border-bottom: 2px solid var(--ctp-surface1);
 }
 
 td {
-    padding: 12px 20px;
-    color: var(--ctp-subtext0);
-    border-bottom: 1px solid var(--ctp-surface0); 
+	padding: 12px 20px;
+	color: var(--ctp-subtext0);
+	border-bottom: 1px solid var(--ctp-surface0);
 }
 
 tr:last-child td {
-    border-bottom: none;
+	border-bottom: none;
 }
 
 tr:nth-child(odd) td {
-    background-color: var(--ctp-base);
+	background-color: var(--ctp-base);
 }
 
 tr:nth-child(even) td {
-    background-color: var(--ctp-base);
+	background-color: var(--ctp-base);
 }
 
-th[align="center"], td[align="center"] {
-    text-align: center;
+th[align="center"],
+td[align="center"] {
+	text-align: center;
 }
 
-th[align="right"], td[align="right"] {
-    text-align: right;
+th[align="right"],
+td[align="right"] {
+	text-align: right;
 }
 
 section::after {
-  content: attr(data-marpit-pagination) " / " attr(data-marpit-pagination-total);
+	content: attr(data-marpit-pagination) " / " attr(data-marpit-pagination-total);
 }
-
