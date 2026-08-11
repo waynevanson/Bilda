@@ -1,9 +1,9 @@
-pub enum Ast {
+pub enum Ast<'input> {
     LetIn {
-        assignments: Vec<Assignment>,
-        expression: Box<Ast>,
+        assignments: Vec<Assignment<'input>>,
+        expression: Box<Ast<'input>>,
     },
-    Expression(Expression),
+    Expression(Expression<'input>),
 }
 
 pub enum ReservedValue {
@@ -22,26 +22,21 @@ pub enum ReservedType {
     String,
 }
 
-pub enum Expression {
-    Map { assignments: Vec<Assignment> },
+pub enum Expression<'input> {
+    Map {
+        assignments: Vec<Assignment<'input>>,
+    },
     ReservedValue(ReservedValue),
-    ReservedType(ReservedType),
+    Reference(&'input str),
+    Add(Box<Ast<'input>>, Box<Ast<'input>>),
 }
 
-pub struct Assignment {
-    target: AssignmentProperty,
-    value: Box<Ast>,
+pub struct Assignment<'input> {
+    pub target: AssignmentProperty<'input>,
+    pub value: Box<Ast<'input>>,
 }
 
-pub struct AssignmentProperty {
-    name: String,
-    r#type: Option<()>,
+pub struct AssignmentProperty<'input> {
+    pub name: &'input str,
+    pub r#type: Option<()>,
 }
-
-pub enum PropertyKind {
-    Static(String),
-    // something that can be a key
-    Computed(Computable),
-}
-
-pub enum Computable {}

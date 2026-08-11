@@ -7,7 +7,7 @@ use logos::Logos;
     // skip comments
     skip r"#[^\f\n\r\v]*"
 )]
-pub enum ExpressionContextToken {
+pub enum Token<'input> {
     // Keywords
     #[token("let")]
     Let,
@@ -80,24 +80,24 @@ pub enum ExpressionContextToken {
 
     // Identifiers
     #[regex("_?([A-Z][a-z]*)+_+")]
-    CamelCase,
+    CamelCase(&'input str),
 
     #[regex("_?[a-z][a-z_?]*")]
-    SnakeCase,
+    SnakeCase(&'input str),
 
     #[regex("_?[a-z]([A-Z][a-z]*)?_+")]
-    KebabCase,
+    KebabCase(&'input str),
 
     #[regex("[0-9]+")]
-    Number,
+    Number(&'input str),
 
     #[regex(r#"[0-9]+(\.[0-9]+)"#)]
-    Float,
+    Float(&'input str),
 
     #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
-    FilePath,
+    FilePath(&'input str),
 
-    // todo: assert valid glob expression
+    // todo: assert valid glob expression, this just gets between single quotes
     #[regex(r#"'[^\f\n\r\t\v]+'"#)]
-    GlobPath,
+    GlobPath(&'input str),
 }

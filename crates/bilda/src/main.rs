@@ -1,7 +1,7 @@
 use std::fs;
 use std::process;
 
-use bilda::lexer::ExpressionContextToken;
+use bilda::lexer::Token;
 use clap::{Parser, Subcommand};
 use logos::Logos;
 
@@ -33,7 +33,7 @@ fn check(path: &str) {
         process::exit(1);
     });
 
-    let _tokens: Vec<ExpressionContextToken> = ExpressionContextToken::lexer(&source)
+    let _tokens: Vec<Token> = Token::lexer(&source)
         .collect::<Result<Vec<_>, _>>()
         .unwrap_or_else(|_| {
             eprintln!("lex error");
