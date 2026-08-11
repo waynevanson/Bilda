@@ -1,9 +1,5 @@
 # a comment!
 # todo: list constructors like globs
-
-# types and values in modules tricky to get right.
-#
-# Want to put types closer to values? Put them in the same file.
 #
 #
 
