@@ -1,7 +1,12 @@
 use logos::Logos;
 
 #[derive(Clone, Debug, Logos, PartialEq)]
-#[logos(skip r"\s+")]
+#[logos(
+    // skip spaces
+    skip r"\s+",
+    // skip comments
+    skip r"#[^\f\n\r\v]*"
+)]
 pub enum ExpressionContextToken {
     // Keywords
     #[token("let")]
@@ -86,10 +91,6 @@ pub enum ExpressionContextToken {
 
     #[regex(r#"[0-9]+(\.[0-9]+)"#)]
     Float,
-
-    // skips to the end of line
-    #[regex(r"#[^\f\n\r\v]*")]
-    Hash,
 
     #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
     FilePath,
