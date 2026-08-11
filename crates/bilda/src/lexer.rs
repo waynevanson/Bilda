@@ -1,8 +1,7 @@
 use logos::Logos;
 
 #[derive(Clone, Debug, Logos, PartialEq)]
-#[logos(skip r"[\n\r\t]+")]
-#[allow(dead_code)]
+#[logos(skip r"\s+")]
 pub enum ExpressionContextToken {
     // Keywords
     #[token("let")]
@@ -37,7 +36,7 @@ pub enum ExpressionContextToken {
     BooleanTrue,
     #[token("False")]
     BooleanFalse,
-    // #[token("String")]
+    // #[token("String")]`
     // String,
     #[token("Int")]
     Int,
@@ -57,9 +56,9 @@ pub enum ExpressionContextToken {
     Minus,
     #[token("+")]
     Plus,
-    #[token("*")]
+    #[token(r#"\*"#)]
     Star,
-    #[token("\"")]
+    #[token(r#"""#)]
     Quotation,
     #[token("&")]
     Ampersand,
@@ -68,18 +67,9 @@ pub enum ExpressionContextToken {
 
     #[token("!")]
     Exclamation,
-    // todo: comments in another parser
-    #[token("#")]
-    Hash,
 
     #[token("_")]
     Underscore,
-
-    #[regex(r#"[a-zA-Z0-9_.()/\\-]*[*?][a-zA-Z0-9_.()/*?-]*"#)]
-    GlobPath,
-
-    #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
-    FilePath,
 
     // Identifiers
     #[regex("_?([A-Z][a-z]*)+_+")]
@@ -94,6 +84,17 @@ pub enum ExpressionContextToken {
     #[regex("[0-9]+")]
     Number,
 
-    #[regex("[0-9]+(\\.[0-9]+)")]
+    #[regex(r#"[0-9]+(\.[0-9]+)"#)]
     Float,
+
+    // skips to the end of line
+    #[regex(r"#[^\f\n\r\v]*")]
+    Hash,
+
+    #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
+    FilePath,
+
+    // todo: assert valid glob expression
+    #[regex(r#"'[^\f\n\r\t\v]+'"#)]
+    GlobPath,
 }

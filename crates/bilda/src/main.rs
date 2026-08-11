@@ -33,7 +33,7 @@ fn check(path: &str) {
         process::exit(1);
     });
 
-    let tokens: Vec<ExpressionContextToken> = ExpressionContextToken::lexer(&source)
+    let _tokens: Vec<ExpressionContextToken> = ExpressionContextToken::lexer(&source)
         .collect::<Result<Vec<_>, _>>()
         .unwrap_or_else(|_| {
             eprintln!("lex error");
@@ -41,6 +41,6 @@ fn check(path: &str) {
         });
 }
 
-fn run(path: &str) {
+fn run(_path: &str) {
     todo!()
 }
