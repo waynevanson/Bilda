@@ -24,6 +24,7 @@ let
   no = False
   # reassign to your hearts content!
   yes = "um hello"
+  globl = './**/*.rs'
   imported = ./path/to/file.txt
   founded = ["sup" "bro" "my-man"]
   hello_world = ""
@@ -39,9 +40,13 @@ let
     name: String
     value: Int
   ) => "{name}-{value}"
+  value = "hello"
 in {
  value = {
-    d = value
-    o = f("brothers" 3)
+    d: String = value
+    ["sdsd"] = f("brothers" 3)
+    [value] = "World!"
+    ["Well {value}"]: "Earth!"
+    ["Welp {value}"]: "Earth!"
  }
 }

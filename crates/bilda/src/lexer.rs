@@ -17,6 +17,8 @@ pub enum ExpressionContextToken {
     On,
     #[token("in")]
     In,
+    #[token("rec")]
+    Rec,
 
     // Brackets
     #[token("<")]
