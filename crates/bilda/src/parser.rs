@@ -66,7 +66,16 @@ mod tests {
 
     #[test]
     fn nested_let() {
-        let source = "let a = 2 b = let c = 1 in c in a + b";
+        let source = r#"
+            let
+              a = 2
+              b = let
+                c = 1
+              in
+                c
+            in
+              a + b
+        "#;
         assert!(parse(source).is_ok());
     }
 }
