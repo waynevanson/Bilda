@@ -7,11 +7,40 @@ header: |
 transition: fade 0.1s
 ---
 
+<!--
+
+Alright
+Show the language we're making straight away
+Explain what the example does
+Explain how to build the language
+Explain design choices
+
+-->
+
 # Rust
 
 The language for languages
 
 <sub>Wayne Van Son</sub>
+
+---
+
+# Why Rust?
+
+Expected from Rust
+
+1. Performance
+2. Low level - memory management
+
+What truly matters
+
+1. Strict
+2. Structures
+3. Ecosystem
+
+<!--
+Ecosystem has great crates for Lexers, Parsers and Compilers (backend + JIT)
+-->
 
 ---
 
@@ -132,24 +161,42 @@ Writing scripts sucks balls. Concurrency composition sucks. No way to control or
 
 new lines are series by default. Imagine if they weren't?
 
+---
+
+What if we make let able to apply n operation as long as it returns?
+
+Top level can even have no binding. assignment assumes let
+
+Like roc, maybe use `main!` the `!` means effect?
+
+```
+pubs
+  value = 1
+  next = 2
+  f = [9,8,7,6]
+  third = {}
+  items = do list::flatmap
+    first = [1 2 3 4]
+    second = [first * 2 first * 4]
+  in
+    first * second
 ```
 
-# controls kids
-series [
-  ./thing.sh
-  ./thing.sh
-  ./thing.sh
-]
+---
 
-# controls kids
-parallel [
-  ./thing.sh
-  ./thing.sh
-  ./thing.sh
-]
+Concurrency for scripts?
 
-# tells daddy
-only always [./thing.sh]
+library mode vs run mode
+
+```
+from "./path/to/file.bilda"
+  items
+
+main!() = {
+  for item in items
+    echo! item.to_str()
+  rof
+}
 
 ```
 
