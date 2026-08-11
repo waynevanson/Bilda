@@ -1,0 +1,45 @@
+# a comment!
+# todo: list constructors like globs
+
+# types and values in modules tricky to get right.
+#
+# Want to put types closer to values? Put them in the same file.
+#
+#
+
+let
+  Chores = List<Chore>
+  Chore = {
+    description = String
+    owner = String
+    completed = False | { TimeTaken }
+  }
+  TimeTaken = Int
+  a = 1
+  b = 2
+  c = 3
+  yes = True
+  no = False
+  # reassign to your hearts content!
+  yes = "um hello"
+  imported = ./path/to/file.txt
+  founded = ["sup" "bro" "my-man"]
+  hello_world = ""
+  d = { a b c }
+  e: List<{ single = Int double = Int }> =
+    on
+      single = [1 2 3 4]
+    do List.map
+      double = f * 2
+    in
+      { single double }
+  f = (
+    name: String
+    value: Int
+  ) => "{name}-{value}"
+in {
+ value = {
+    d = value
+    o = f("brothers" 3)
+ }
+}

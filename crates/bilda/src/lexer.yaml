@@ -1,0 +1,9 @@
+fixtures:
+  fixture-name:
+    inputs: |
+    outputs:
+      match: true
+      ast:
+        - kind: Token
+        - kind: Vars
+        - Expr

@@ -1,7 +1,7 @@
 use std::fs;
 use std::process;
 
-use bilda::lexer::Token;
+use bilda::lexer::ExpressionContext;
 use bilda::parser;
 use clap::{Parser, Subcommand};
 use logos::Logos;
@@ -34,7 +34,7 @@ fn check(path: &str) {
         process::exit(1);
     });
 
-    let tokens: Vec<Token> = Token::lexer(&source)
+    let tokens: Vec<ExpressionContext> = ExpressionContext::lexer(&source)
         .collect::<Result<Vec<_>, _>>()
         .unwrap_or_else(|_| {
             eprintln!("lex error");
@@ -55,41 +55,5 @@ fn check(path: &str) {
 }
 
 fn run(path: &str) {
-    let ast = parse(path);
-
-    let func = bilda::compiler::Compiler::new()
-        .and_then(|mut compiler| compiler.compile(&ast))
-        .unwrap_or_else(|error| {
-            eprintln!("run error: {error}");
-            process::exit(1);
-        });
-
-    let (value, tag) = func();
-    match tag {
-        0 => {}
-        1 => println!("{value}"),
-        2 => println!("<closure>"),
-        _ => println!("<unknown>"),
-    }
-}
-
-fn parse(path: &str) -> bilda::ast::Ast {
-    let source = fs::read_to_string(path).unwrap_or_else(|e| {
-        eprintln!("error reading {}: {e}", path);
-        process::exit(1);
-    });
-
-    let tokens: Vec<Token> = Token::lexer(&source)
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap_or_else(|_| {
-            eprintln!("lex error");
-            process::exit(1);
-        });
-
-    parser::parse(&tokens).unwrap_or_else(|errors| {
-        for error in errors {
-            eprintln!("{error:?}");
-        }
-        process::exit(1);
-    })
+    todo!()
 }
