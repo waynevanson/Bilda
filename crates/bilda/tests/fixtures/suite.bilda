@@ -18,6 +18,12 @@ let
   a = 1
   b = 2
   c = 3
+  completed = TimeTaken(2)
+  chore = Chore {
+    description = "Vacuum"
+    owner = "Wayne"
+    completed
+  }
   yes = True
   no = False
   # reassign to your hearts content!

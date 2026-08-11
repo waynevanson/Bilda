@@ -3,18 +3,16 @@ use logos::Logos;
 #[derive(Clone, Debug, Logos, PartialEq)]
 #[logos(skip r"[\n\r\t]+")]
 #[allow(dead_code)]
-pub enum ExpressionContext {
+pub enum ExpressionContextToken {
     // Keywords
-    #[token("def")]
-    Def,
     #[token("let")]
     Let,
-    #[token("in")]
-    In,
-    #[token("on")]
-    On,
     #[token("do")]
     Do,
+    #[token("on")]
+    On,
+    #[token("in")]
+    In,
 
     // Brackets
     #[token("<")]
@@ -77,6 +75,12 @@ pub enum ExpressionContext {
     #[token("_")]
     Underscore,
 
+    #[regex(r#"[a-zA-Z0-9_.()/\\-]*[*?][a-zA-Z0-9_.()/*?-]*"#)]
+    GlobPath,
+
+    #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
+    FilePath,
+
     // Identifiers
     #[regex("_?([A-Z][a-z]*)+_+")]
     CamelCase,
@@ -87,6 +91,9 @@ pub enum ExpressionContext {
     #[regex("_?[a-z]([A-Z][a-z]*)?_+")]
     KebabCase,
 
-    #[regex("[0-9]+(\\.[0-9]+)?")]
+    #[regex("[0-9]+")]
     Number,
+
+    #[regex("[0-9]+(\\.[0-9]+)")]
+    Float,
 }
