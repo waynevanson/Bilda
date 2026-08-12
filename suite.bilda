@@ -14,6 +14,12 @@ let
   a = 1
   b = 2
   c = 3
+  Chore = {
+    description = String
+    owner = String
+    completed = False | { TimeTaken }
+  }
+  TimeTaken = Int
   completed = TimeTaken(2)
   chore = Chore {
     description = "Vacuum"

@@ -30,7 +30,6 @@ where
 
     let combine = |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
 
-    // todo: test: brackets, bodmas
     let math = recursive(|math| {
         math.delimited_by(
             just(Token::RoundBracketLeft),
