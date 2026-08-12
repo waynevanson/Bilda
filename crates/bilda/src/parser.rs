@@ -351,17 +351,8 @@ mod tests {
             })),
         }
     )]
-    fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
-        let tokens: Vec<Token<'_>> = Token::lexer(source)
-            .collect::<Result<_, _>>()
-            .expect("lex error");
-        let actual = ast().parse(Stream::from_iter(tokens)).into_result();
-        assert_eq!(actual, Ok(expected));
-    }
-
-    #[test]
-    fn chore_snippet() {
-        let source = r#"
+    #[case(
+        r#"
             let
               Chore = {
                 description = String
@@ -377,12 +368,94 @@ mod tests {
               }
             in
               chore
-        "#;
-
+        "#,
+        Ast::LetIn {
+            assignments: vec![
+                Assignment {
+                    name: "Chore",
+                    r#type: None,
+                    value: Box::new(Ast::Expression(Expression::Map {
+                        assignments: vec![
+                            Assignment {
+                                name: "description",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Reference("String"))),
+                            },
+                            Assignment {
+                                name: "owner",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Reference("String"))),
+                            },
+                            Assignment {
+                                name: "completed",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Union(vec![
+                                    Expression::Boolean(false),
+                                    Expression::Map {
+                                        assignments: vec![Assignment {
+                                            name: "TimeTaken",
+                                            r#type: None,
+                                            value: Box::new(Ast::Expression(Expression::Reference(
+                                                "TimeTaken",
+                                            ))),
+                                        }],
+                                    },
+                                ]))),
+                            },
+                        ],
+                    })),
+                },
+                Assignment {
+                    name: "TimeTaken",
+                    r#type: None,
+                    value: Box::new(Ast::Expression(Expression::Reference("Int"))),
+                },
+                Assignment {
+                    name: "completed",
+                    r#type: None,
+                    value: Box::new(Ast::Expression(Expression::Call {
+                        function: "TimeTaken",
+                        argument: Box::new(Expression::Int(2)),
+                    })),
+                },
+                Assignment {
+                    name: "chore",
+                    r#type: None,
+                    value: Box::new(Ast::Expression(Expression::Call {
+                        function: "Chore",
+                        argument: Box::new(Expression::Map {
+                            assignments: vec![
+                                Assignment {
+                                    name: "description",
+                                    r#type: None,
+                                    value: Box::new(Ast::Expression(Expression::String("Vacuum"))),
+                                },
+                                Assignment {
+                                    name: "owner",
+                                    r#type: None,
+                                    value: Box::new(Ast::Expression(Expression::String("Wayne"))),
+                                },
+                                Assignment {
+                                    name: "completed",
+                                    r#type: None,
+                                    value: Box::new(Ast::Expression(Expression::Reference(
+                                        "completed",
+                                    ))),
+                                },
+                            ],
+                        })),
+                    })),
+                },
+            ],
+            expression: Box::new(Expression::Reference("chore")),
+        }
+    )]
+    fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
         let tokens: Vec<Token<'_>> = Token::lexer(source)
             .collect::<Result<_, _>>()
             .expect("lex error");
         let actual = ast().parse(Stream::from_iter(tokens)).into_result();
-        assert!(actual.is_ok(), "{actual:#?}");
+        assert_eq!(actual, Ok(expected));
     }
+
 }
