@@ -1,3 +1,4 @@
+#[derive(Debug, PartialEq)]
 pub enum Ast<'input> {
     LetIn {
         assignments: Vec<Assignment<'input>>,
@@ -6,6 +7,7 @@ pub enum Ast<'input> {
     Expression(Expression<'input>),
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MathSign {
     Subtraction,
     Addition,
@@ -13,17 +15,21 @@ pub enum MathSign {
     Division,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum MathTarget<'input> {
     Number(isize),
     Reference(&'input str),
+    Math(Box<Math<'input>>),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Math<'input> {
     pub sign: MathSign,
     pub left: MathTarget<'input>,
     pub right: MathTarget<'input>,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Expression<'input> {
     Map {
         assignments: Vec<Assignment<'input>>,
@@ -36,6 +42,7 @@ pub enum Expression<'input> {
     Math(Math<'input>),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Assignment<'input> {
     pub name: &'input str,
     pub r#type: Option<()>,

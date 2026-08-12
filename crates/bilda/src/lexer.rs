@@ -107,10 +107,10 @@ pub enum Token<'input> {
     #[regex("[a-zA-Z][a-zA-Z0-9_]*")]
     Identifier(&'input str),
 
-    #[regex(r"([\+\-]\s?)?[0-9]+", |lexer| isize::from_str(lexer.slice()))]
+    #[regex(r"[\+\-]?[0-9]+", |lexer| isize::from_str(lexer.slice()))]
     Number(isize),
 
-    #[regex(r#"([\+\-]\s?)?[0-9]+(\.[0-9]+)"#, |lexer| f64::from_str(lexer.slice()))]
+    #[regex(r#"[\+\-]?[0-9]+(\.[0-9]+)"#, |lexer| f64::from_str(lexer.slice()))]
     Float(f64),
 
     #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
