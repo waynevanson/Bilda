@@ -28,7 +28,7 @@ where
         Token::Minus => MathSign::Subtraction,
     };
 
-    let combine = |left, (sign, right)| MathTarget::Math(Box::new(Math { left, sign, right }));
+    let combine = |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
 
     // todo: test: brackets, bodmas
     let math = recursive(|math| {
@@ -38,12 +38,8 @@ where
         )
         .or(math_target)
         .pratt((
-            infix(left(2), sign_high, move |l, sign, r, _| {
-                combine(l, (sign, r))
-            }),
-            infix(left(1), sign_low, move |l, sign, r, _| {
-                combine(l, (sign, r))
-            }),
+            infix(left(2), sign_high, move |l, sign, r, _| combine(l, sign, r)),
+            infix(left(1), sign_low, move |l, sign, r, _| combine(l, sign, r)),
         ))
     });
 
