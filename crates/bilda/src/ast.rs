@@ -14,7 +14,7 @@ pub enum MathSign {
 }
 
 pub enum MathTarget<'input> {
-    Number(&'input isize),
+    Number(isize),
     Reference(&'input str),
 }
 
@@ -28,8 +28,8 @@ pub enum Expression<'input> {
     Map {
         assignments: Vec<Assignment<'input>>,
     },
-    Int(&'input isize),
-    Float(&'input f64),
+    Int(isize),
+    Float(f64),
     Boolean(bool),
     String(&'input str),
     Reference(&'input str),

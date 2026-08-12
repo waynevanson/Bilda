@@ -2,15 +2,12 @@ use crate::{
     ast::{Assignment, Ast, Expression, Math, MathSign, MathTarget},
     lexer::Token,
 };
-use chumsky::{
-    input::{BorrowInput, ValueInput},
-    prelude::*,
-};
+use chumsky::{input::ValueInput, prelude::*};
 
 pub fn ast<'tok, 'src: 'tok, I>()
 -> impl Parser<'tok, I, Ast<'tok>, extra::Err<Rich<'tok, Token<'src>>>>
 where
-    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + BorrowInput<'tok> + Input<'tok>,
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
     let math_sign = select! {
         Token::Minus => MathSign::Subtraction,
@@ -19,7 +16,7 @@ where
         Token::ForwardSlash => MathSign::Subtraction
     };
 
-    let math_target = select_ref! {
+    let math_target = select! {
       Token::Number(n) => MathTarget::Number(n),
       Token::Identifier(str) => MathTarget::Reference(str)
     };
@@ -40,13 +37,12 @@ where
     });
 
     // `in <expression>`
-    let expression = select_ref! {
+    let expression = math.map(Expression::Math).or(select! {
         Token::Number(n) => Expression::Int(n),
         Token::Identifier(name) => Expression::Reference(name),
-        Token::True =>Expression::Boolean(true),
+        Token::True => Expression::Boolean(true),
         Token::False => Expression::Boolean(false),
-    }
-    .or(math.map(Expression::Math));
+    });
 
     let property = select! {
         Token::Identifier(name) => name,
@@ -61,7 +57,7 @@ where
             .then_ignore(equal)
             .then(ast.clone())
             .map(|(name, ast)| Assignment {
-                name: name,
+                name,
                 r#type: None,
                 value: Box::new(ast),
             });
@@ -71,28 +67,27 @@ where
         let let_in = just(Token::Let)
             .ignore_then(assignments)
             .then_ignore(r#in)
-            .then(expression)
+            .then(expression.clone())
             .map(|(assignments, expression)| Ast::LetIn {
                 assignments,
                 expression: Box::new(expression),
             });
 
-        let_in
+        let_in.or(expression.map(Ast::Expression))
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chumsky::Parser;
+    use chumsky::{Parser, input::Stream};
     use logos::Logos;
 
-    fn parse(source: &str) -> Result<(Vec<Token<'_>>, Ast<'_>), Vec<Rich<'_, Token<'_>>>> {
+    fn parse(source: &str) -> Result<Ast<'_>, Vec<Rich<'_, Token<'_>>>> {
         let tokens: Vec<Token<'_>> = Token::lexer(source)
             .collect::<Result<_, _>>()
             .expect("lex error");
-        let result = ast().parse(tokens.as_slice()).into_result();
-        result.map(|ast| (tokens, ast))
+        ast().parse(Stream::from_iter(tokens)).into_result()
     }
 
     #[test]
