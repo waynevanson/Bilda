@@ -2,7 +2,7 @@ use crate::{
     ast::{Assignment, Ast, Expression, Math, MathSign, MathTarget},
     lexer::Token,
 };
-use chumsky::{input::ValueInput, prelude::*};
+use chumsky::{input::ValueInput, pratt::{infix, left}, prelude::*};
 
 pub fn ast<'tok, 'src: 'tok, I>()
 -> impl Parser<'tok, I, Ast<'tok>, extra::Err<Rich<'tok, Token<'src>>>>
@@ -35,13 +35,10 @@ where
             )
             .or(math_target);
 
-        let factor = atom
-            .clone()
-            .foldl(sign_high.then(atom.clone()).repeated(), combine);
-
-        factor
-            .clone()
-            .foldl(sign_low.then(factor.clone()).repeated(), combine)
+        atom.pratt((
+            infix(left(2), sign_high, move |l, sign, r, _| combine(l, (sign, r))),
+            infix(left(1), sign_low, move |l, sign, r, _| combine(l, (sign, r))),
+        ))
     });
 
     // `in <expression>`
