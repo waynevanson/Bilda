@@ -90,8 +90,11 @@ pub enum Token<'input> {
     Asterisk,
     #[token(r#"\*"#)]
     Star,
-    #[token(r#"""#)]
-    Quotation,
+    #[regex(r#""[^"]*""#, |lexer| {
+        let slice = lexer.slice();
+        &slice[1..slice.len() - 1]
+    })]
+    StringLiteral(&'input str),
     #[token("&")]
     Ampersand,
     #[token("|")]

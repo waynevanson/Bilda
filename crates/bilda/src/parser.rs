@@ -6,6 +6,7 @@ use chumsky::{
     input::ValueInput,
     pratt::{infix, left},
     prelude::*,
+    primitive::Select,
 };
 
 pub fn ast<'tok, 'src: 'tok, I>()
@@ -13,63 +14,119 @@ pub fn ast<'tok, 'src: 'tok, I>()
 where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
-    let math_target = select! {
-        Token::Number(n) => MathTarget::Number(n),
-        Token::Identifier(str) => MathTarget::Reference(str),
-    };
-
-    let sign_high = select! {
-        Token::Asterisk => MathSign::Multiplication,
-        Token::ForwardSlash => MathSign::Division,
-    };
-
-    let sign_low = select! {
-        Token::Plus => MathSign::Addition,
-        Token::Minus => MathSign::Subtraction,
-    };
-
-    let combine = |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
-
-    let math = recursive(|math| {
-        math.delimited_by(
-            just(Token::RoundBracketLeft),
-            just(Token::RoundBracketRight),
-        )
-        .or(math_target)
-        .pratt((
-            infix(left(2), sign_high, move |l, sign, r, _| combine(l, sign, r)),
-            infix(left(1), sign_low, move |l, sign, r, _| combine(l, sign, r)),
-        ))
-    });
-
-    // The expression `in <expression>`
-    let expression = math
-        .map(|target| match target {
-            MathTarget::Math(math) => Expression::Math(*math),
-            MathTarget::Number(n) => Expression::Int(n),
-            MathTarget::Reference(name) => Expression::Reference(name),
-        })
-        .or(select! {
-            Token::True => Expression::Boolean(true),
-            Token::False => Expression::Boolean(false),
-        });
-
     let property = select! {
         Token::Identifier(name) => name,
     };
 
     let equal = just(Token::Equal);
-
     let r#in = just(Token::In);
 
     recursive(|ast| {
+        let expr = recursive(|expr| {
+            let map_assignment =
+                {
+                    let full = property.then_ignore(equal.clone()).then(ast.clone()).map(
+                        |(name, value)| Assignment {
+                            name,
+                            r#type: None,
+                            value: Box::new(value),
+                        },
+                    );
+
+                    let shorthand = property.map(|name| Assignment {
+                        name,
+                        r#type: None,
+                        value: Box::new(Ast::Expression(Expression::Reference(name))),
+                    });
+
+                    full.or(shorthand)
+                };
+
+            let map = just(Token::CurlyBracketLeft)
+                .ignore_then(map_assignment.repeated().collect())
+                .then_ignore(just(Token::CurlyBracketRight))
+                .map(|assignments| Expression::Map { assignments });
+
+            let atom = choice((
+                select! { Token::StringLiteral(s) => Expression::String(s) },
+                select! {
+                    Token::True => Expression::Boolean(true),
+                    Token::False => Expression::Boolean(false),
+                },
+                map.clone(),
+            ));
+
+            let call = {
+                let name = select! { Token::Identifier(name) => name };
+                let paren_args = expr.clone().delimited_by(
+                    just(Token::RoundBracketLeft),
+                    just(Token::RoundBracketRight),
+                );
+                name.then(choice((paren_args, map.clone())))
+                    .map(|(name, arg)| Expression::Call {
+                        function: name,
+                        argument: Box::new(arg),
+                    })
+            };
+
+            let math_target = select! {
+                Token::Number(n) => MathTarget::Number(n),
+                Token::Identifier(str) => MathTarget::Reference(str),
+                Token::String => MathTarget::Reference("String"),
+                Token::Int => MathTarget::Reference("Int"),
+            };
+
+            let sign_high = select! {
+                Token::Asterisk => MathSign::Multiplication,
+                Token::ForwardSlash => MathSign::Division,
+            };
+
+            let sign_low = select! {
+                Token::Plus => MathSign::Addition,
+                Token::Minus => MathSign::Subtraction,
+            };
+
+            let combine =
+                |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
+
+            let math = recursive(|math| {
+                math.delimited_by(
+                    just(Token::RoundBracketLeft),
+                    just(Token::RoundBracketRight),
+                )
+                .or(math_target)
+                .pratt((
+                    infix(left(2), sign_high, move |l, sign, r, _| combine(l, sign, r)),
+                    infix(left(1), sign_low, move |l, sign, r, _| combine(l, sign, r)),
+                ))
+            });
+
+            let math_expr = math.map(|target| match target {
+                MathTarget::Number(n) => Expression::Int(n),
+                MathTarget::Reference(name) => Expression::Reference(name),
+                MathTarget::Math(math) => Expression::Math(*math),
+            });
+
+            choice((call, math_expr, atom))
+                .separated_by(just(Token::Pipe))
+                .at_least(1)
+                .collect()
+                .map(|parts: Vec<Expression>| {
+                    if parts.len() == 1 {
+                        parts.into_iter().next().unwrap()
+                    } else {
+                        Expression::Union(parts)
+                    }
+                })
+        });
+
         let assignment = property
             .then_ignore(equal)
             .then(ast.clone())
-            .map(|(name, ast)| Assignment {
+            .map(|(name, value)| Assignment {
                 name,
                 r#type: None,
-                value: Box::new(ast),
+                value: Box::new(value),
             });
 
         let assignments = assignment.repeated().at_least(1).collect();
@@ -77,13 +134,13 @@ where
         let let_in = just(Token::Let)
             .ignore_then(assignments)
             .then_ignore(r#in)
-            .then(expression.clone())
+            .then(expr.clone())
             .map(|(assignments, expression)| Ast::LetIn {
                 assignments,
                 expression: Box::new(expression),
             });
 
-        let_in.or(expression.map(Ast::Expression))
+        let_in.or(expr.map(Ast::Expression))
     })
 }
 
@@ -195,5 +252,32 @@ mod tests {
             .expect("lex error");
         let actual = ast().parse(Stream::from_iter(tokens)).into_result();
         assert_eq!(actual, Ok(expected));
+    }
+
+    #[test]
+    fn chore_snippet() {
+        let source = r#"
+            let
+              Chore = {
+                description = String
+                owner = String
+                completed = False | { TimeTaken }
+              }
+              TimeTaken = Int
+              completed = TimeTaken(2)
+              chore = Chore {
+                description = "Vacuum"
+                owner = "Wayne"
+                completed
+              }
+            in
+              chore
+        "#;
+
+        let tokens: Vec<Token<'_>> = Token::lexer(source)
+            .collect::<Result<_, _>>()
+            .expect("lex error");
+        let actual = ast().parse(Stream::from_iter(tokens)).into_result();
+        assert!(actual.is_ok(), "{actual:#?}");
     }
 }
