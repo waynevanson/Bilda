@@ -2,7 +2,11 @@ use crate::{
     ast::{Assignment, Ast, Expression, Math, MathSign, MathTarget},
     lexer::Token,
 };
-use chumsky::{input::ValueInput, pratt::{infix, left}, prelude::*};
+use chumsky::{
+    input::ValueInput,
+    pratt::{infix, left},
+    prelude::*,
+};
 
 pub fn ast<'tok, 'src: 'tok, I>()
 -> impl Parser<'tok, I, Ast<'tok>, extra::Err<Rich<'tok, Token<'src>>>>
@@ -28,20 +32,22 @@ where
 
     // todo: test: brackets, bodmas
     let math = recursive(|math| {
-        let atom = math
-            .delimited_by(
-                just(Token::RoundBracketLeft),
-                just(Token::RoundBracketRight),
-            )
-            .or(math_target);
-
-        atom.pratt((
-            infix(left(2), sign_high, move |l, sign, r, _| combine(l, (sign, r))),
-            infix(left(1), sign_low, move |l, sign, r, _| combine(l, (sign, r))),
+        math.delimited_by(
+            just(Token::RoundBracketLeft),
+            just(Token::RoundBracketRight),
+        )
+        .or(math_target)
+        .pratt((
+            infix(left(2), sign_high, move |l, sign, r, _| {
+                combine(l, (sign, r))
+            }),
+            infix(left(1), sign_low, move |l, sign, r, _| {
+                combine(l, (sign, r))
+            }),
         ))
     });
 
-    // `in <expression>`
+    // The expression `in <expression>`
     let expression = math
         .map(|target| match target {
             MathTarget::Math(math) => Expression::Math(*math),
