@@ -50,7 +50,7 @@ let
 in {
  value = {
     d: String = value
-    ["sdsd"] = f("brothers" 3)
+    ["sdsd"] = f ("brothers" 3)
     [value] = "World!"
     ["Well {value}"]: "Earth!"
     ["Welp {value}"]: "Earth!"

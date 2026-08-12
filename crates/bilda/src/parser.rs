@@ -2,146 +2,210 @@ use crate::{
     ast::{Assignment, Ast, Expression, Math, MathSign, MathTarget},
     lexer::Token,
 };
-use chumsky::{
-    input::ValueInput,
-    pratt::{infix, left},
-    prelude::*,
-    primitive::Select,
-};
+use chumsky::{input::ValueInput, pratt::{infix, left}, prelude::*};
 
-pub fn ast<'tok, 'src: 'tok, I>()
--> impl Parser<'tok, I, Ast<'tok>, extra::Err<Rich<'tok, Token<'src>>>>
+type Extra<'tok, 'src> = extra::Err<Rich<'tok, Token<'src>>>;
+
+pub fn ast<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>>
 where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
-    let property = select! {
-        Token::Identifier(name) => name,
-    };
-
-    let equal = just(Token::Equal);
-    let r#in = just(Token::In);
-
     recursive(|ast| {
-        let expr = recursive(|expr| {
-            let map_assignment =
-                {
-                    let full = property.then_ignore(equal.clone()).then(ast.clone()).map(
-                        |(name, value)| Assignment {
-                            name,
-                            r#type: None,
-                            value: Box::new(value),
-                        },
-                    );
+        let expr = expression(ast.clone());
+        let_in(ast.clone(), expr.clone()).or(expr.map(Ast::Expression))
+    })
+}
 
-                    let shorthand = property.map(|name| Assignment {
-                        name,
-                        r#type: None,
-                        value: Box::new(Ast::Expression(Expression::Reference(name))),
-                    });
+fn property<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, &'src str, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+{
+    select! {
+        Token::Identifier(name) => name,
+    }
+}
 
-                    full.or(shorthand)
-                };
+fn atom<'tok, 'src: 'tok, I, M>(map: M) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    M: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    choice((
+        select! { Token::StringLiteral(s) => Expression::String(s) },
+        select! {
+            Token::True => Expression::Boolean(true),
+            Token::False => Expression::Boolean(false),
+        },
+        map,
+    ))
+}
 
-            let map = just(Token::CurlyBracketLeft)
-                .ignore_then(map_assignment.repeated().collect())
-                .then_ignore(just(Token::CurlyBracketRight))
-                .map(|assignments| Expression::Map { assignments });
-
-            let atom = choice((
-                select! { Token::StringLiteral(s) => Expression::String(s) },
-                select! {
-                    Token::True => Expression::Boolean(true),
-                    Token::False => Expression::Boolean(false),
-                },
-                map.clone(),
-            ));
-
-            let call = {
-                let name = select! { Token::Identifier(name) => name };
-                let paren_args = expr.clone().delimited_by(
-                    just(Token::RoundBracketLeft),
-                    just(Token::RoundBracketRight),
-                );
-                name.then(choice((paren_args, map.clone())))
-                    .map(|(name, arg)| Expression::Call {
-                        function: name,
-                        argument: Box::new(arg),
-                    })
-            };
-
-            let math_target = select! {
-                Token::Number(n) => MathTarget::Number(n),
-                Token::Identifier(str) => MathTarget::Reference(str),
-                Token::String => MathTarget::Reference("String"),
-                Token::Int => MathTarget::Reference("Int"),
-            };
-
-            let sign_high = select! {
-                Token::Asterisk => MathSign::Multiplication,
-                Token::ForwardSlash => MathSign::Division,
-            };
-
-            let sign_low = select! {
-                Token::Plus => MathSign::Addition,
-                Token::Minus => MathSign::Subtraction,
-            };
-
-            let combine =
-                |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
-
-            let math = recursive(|math| {
-                math.delimited_by(
-                    just(Token::RoundBracketLeft),
-                    just(Token::RoundBracketRight),
-                )
-                .or(math_target)
-                .pratt((
-                    infix(left(2), sign_high, move |l, sign, r, _| combine(l, sign, r)),
-                    infix(left(1), sign_low, move |l, sign, r, _| combine(l, sign, r)),
-                ))
-            });
-
-            let math_expr = math.map(|target| match target {
-                MathTarget::Number(n) => Expression::Int(n),
-                MathTarget::Reference(name) => Expression::Reference(name),
-                MathTarget::Math(math) => Expression::Math(*math),
-            });
-
-            choice((call, math_expr, atom))
-                .separated_by(just(Token::Pipe))
-                .at_least(1)
-                .collect()
-                .map(|parts: Vec<Expression>| {
-                    if parts.len() == 1 {
-                        parts.into_iter().next().unwrap()
-                    } else {
-                        Expression::Union(parts)
-                    }
-                })
+fn map_assignment<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Assignment<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    let full = property()
+        .then_ignore(just(Token::Equal))
+        .then(ast.clone())
+        .map(|(name, value)| Assignment {
+            name,
+            r#type: None,
+            value: Box::new(value),
         });
 
-        let assignment = property
-            .then_ignore(equal)
-            .then(ast.clone())
-            .map(|(name, value)| Assignment {
-                name,
-                r#type: None,
-                value: Box::new(value),
-            });
+    let shorthand = property().map(|name| Assignment {
+        name,
+        r#type: None,
+        value: Box::new(Ast::Expression(Expression::Reference(name))),
+    });
 
-        let assignments = assignment.repeated().at_least(1).collect();
+    full.or(shorthand)
+}
 
-        let let_in = just(Token::Let)
-            .ignore_then(assignments)
-            .then_ignore(r#in)
-            .then(expr.clone())
-            .map(|(assignments, expression)| Ast::LetIn {
-                assignments,
-                expression: Box::new(expression),
-            });
+fn map_expr<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    just(Token::CurlyBracketLeft)
+        .ignore_then(map_assignment(ast).repeated().collect())
+        .then_ignore(just(Token::CurlyBracketRight))
+        .map(|assignments| Expression::Map { assignments })
+}
 
-        let_in.or(expr.map(Ast::Expression))
+fn call<'tok, 'src: 'tok, I, E, M>(
+    expr: E,
+    map: M,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    E: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+    M: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    let paren_args = expr.clone().delimited_by(
+        just(Token::RoundBracketLeft),
+        just(Token::RoundBracketRight),
+    );
+
+    property()
+        .then(choice((paren_args, map.clone())))
+        .map(|(name, arg)| Expression::Call {
+            function: name,
+            argument: Box::new(arg),
+        })
+}
+
+fn math_target<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, MathTarget<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+{
+    select! {
+        Token::Number(n) => MathTarget::Number(n),
+        Token::Identifier(str) => MathTarget::Reference(str),
+        Token::String => MathTarget::Reference("String"),
+        Token::Int => MathTarget::Reference("Int"),
+    }
+}
+
+fn math<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, MathTarget<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+{
+    recursive(|math| {
+        let sign_high = select! {
+            Token::Asterisk => MathSign::Multiplication,
+            Token::ForwardSlash => MathSign::Division,
+        };
+
+        let sign_low = select! {
+            Token::Plus => MathSign::Addition,
+            Token::Minus => MathSign::Subtraction,
+        };
+
+        let combine =
+            |left, sign, right| MathTarget::Math(Box::new(Math { left, sign, right }));
+
+        math.delimited_by(
+            just(Token::RoundBracketLeft),
+            just(Token::RoundBracketRight),
+        )
+        .or(math_target())
+        .pratt((
+            infix(left(2), sign_high, move |l, sign, r, _| combine(l, sign, r)),
+            infix(left(1), sign_low, move |l, sign, r, _| combine(l, sign, r)),
+        ))
     })
+}
+
+fn expression<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    recursive(|expr| {
+        let map = map_expr(ast.clone());
+        let call = call(expr.clone(), map.clone());
+        let math_expr = math().map(|target| match target {
+            MathTarget::Number(n) => Expression::Int(n),
+            MathTarget::Reference(name) => Expression::Reference(name),
+            MathTarget::Math(math) => Expression::Math(*math),
+        });
+
+        choice((call, math_expr, atom(map)))
+            .separated_by(just(Token::Pipe))
+            .at_least(1)
+            .collect()
+            .map(|parts: Vec<Expression<'src>>| {
+                if parts.len() == 1 {
+                    parts.into_iter().next().unwrap()
+                } else {
+                    Expression::Union(parts)
+                }
+            })
+    })
+}
+
+fn assignment<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Assignment<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    property()
+        .then_ignore(just(Token::Equal))
+        .then(ast)
+        .map(|(name, value)| Assignment {
+            name,
+            r#type: None,
+            value: Box::new(value),
+        })
+}
+
+fn let_in<'tok, 'src: 'tok, I, A, E>(
+    ast: A,
+    expr: E,
+) -> impl Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+    E: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    just(Token::Let)
+        .ignore_then(assignment(ast).repeated().at_least(1).collect())
+        .then_ignore(just(Token::In))
+        .then(expr)
+        .map(|(assignments, expression)| Ast::LetIn {
+            assignments,
+            expression: Box::new(expression),
+        })
 }
 
 #[cfg(test)]
