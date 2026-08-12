@@ -1,7 +1,30 @@
+use core::num::{ParseFloatError, ParseIntError};
+use core::str::FromStr;
 use logos::Logos;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum LexerError {
+    #[default]
+    InvalidToken,
+    ParseInt(ParseIntError),
+    ParseFloat(ParseFloatError),
+}
+
+impl From<ParseIntError> for LexerError {
+    fn from(value: ParseIntError) -> Self {
+        LexerError::ParseInt(value)
+    }
+}
+
+impl From<ParseFloatError> for LexerError {
+    fn from(value: ParseFloatError) -> Self {
+        LexerError::ParseFloat(value)
+    }
+}
 
 #[derive(Clone, Debug, Logos, PartialEq)]
 #[logos(
+    error = LexerError,
     // skip spaces
     skip r"\s+",
     // skip comments
@@ -40,11 +63,9 @@ pub enum Token<'input> {
 
     // Primitives
     #[token("True")]
-    BooleanTrue,
+    True,
     #[token("False")]
-    BooleanFalse,
-    // #[token("String")]`
-    // String,
+    False,
     #[token("Int")]
     Int,
     #[token("String")]
@@ -63,6 +84,10 @@ pub enum Token<'input> {
     Minus,
     #[token("+")]
     Plus,
+    #[token("/")]
+    ForwardSlash,
+    #[token("*")]
+    Asterisk,
     #[token(r#"\*"#)]
     Star,
     #[token(r#"""#)]
@@ -79,20 +104,14 @@ pub enum Token<'input> {
     Underscore,
 
     // Identifiers
-    #[regex("_?([A-Z][a-z]*)+_+")]
-    CamelCase(&'input str),
+    #[regex("[a-zA-Z][a-zA-Z0-9_]*")]
+    Identifier(&'input str),
 
-    #[regex("_?[a-z][a-z_?]*")]
-    SnakeCase(&'input str),
+    #[regex(r"([\+\-]\s?)?[0-9]+", |lexer| isize::from_str(lexer.slice()))]
+    Number(isize),
 
-    #[regex("_?[a-z]([A-Z][a-z]*)?_+")]
-    KebabCase(&'input str),
-
-    #[regex("[0-9]+")]
-    Number(&'input str),
-
-    #[regex(r#"[0-9]+(\.[0-9]+)"#)]
-    Float(&'input str),
+    #[regex(r#"([\+\-]\s?)?[0-9]+(\.[0-9]+)"#, |lexer| f64::from_str(lexer.slice()))]
+    Float(f64),
 
     #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
     FilePath(&'input str),
