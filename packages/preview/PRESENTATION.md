@@ -348,6 +348,13 @@ two paths, we show compiler and interpreter then we say a thirdish.
 
 ---
 
+#### Parser Combinator Speedrun
+
+1. Default: increments 0 tokens, returns (), success
+2.
+
+---
+
 ### Intepreter
 
 The heart and soul, get's things done.

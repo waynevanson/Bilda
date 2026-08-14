@@ -34,11 +34,16 @@ pub enum Expression<'input> {
     Map {
         assignments: Vec<Assignment<'input>>,
     },
+    Product {
+        assignments: Vec<Assignment<'input>>,
+    },
+    Sum {
+        assignments: Vec<Assignment<'input>>,
+    },
     Call {
         function: &'input str,
         argument: Box<Expression<'input>>,
     },
-    Union(Vec<Expression<'input>>),
     Int(isize),
     Float(f64),
     Boolean(bool),

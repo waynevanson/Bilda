@@ -110,6 +110,36 @@ where
         .map(|assignments| Expression::Map { assignments })
 }
 
+fn expression_product<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    just(Token::Plus)
+        .ignore_then(expression_map(ast))
+        .map(|expression| match expression {
+            Expression::Map { assignments } => Expression::Product { assignments },
+            _ => unreachable!(),
+        })
+}
+
+fn expression_sum<'tok, 'src: 'tok, I, A>(
+    ast: A,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    A: Parser<'tok, I, Ast<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    just(Token::Asterisk)
+        .ignore_then(expression_map(ast))
+        .map(|expression| match expression {
+            Expression::Map { assignments } => Expression::Sum { assignments },
+            _ => unreachable!(),
+        })
+}
+
 fn call<'tok, 'src: 'tok, I, E, M>(
     expr: E,
     map: M,
@@ -195,21 +225,12 @@ where
 {
     recursive(|expr| {
         let map = expression_map(ast.clone());
+        let product = expression_product(ast.clone());
+        let sum = expression_sum(ast.clone());
         let call = call(expr.clone(), map.clone());
-        let choices = (call, expression_math(), atom(map));
+        let choices = (call, sum, product, expression_math(), atom(map));
 
         choice(choices)
-            // todo: make type system sum and product symbols?
-            .separated_by(just(Token::Pipe))
-            .at_least(1)
-            .collect()
-            .map(|parts: Vec<Expression<'src>>| {
-                if parts.len() == 1 {
-                    parts.into_iter().next().unwrap()
-                } else {
-                    Expression::Union(parts)
-                }
-            })
     })
 }
 
@@ -354,100 +375,101 @@ mod tests {
     #[case(
         r#"
             let
-              Chore = {
-                description = String
-                owner = String
-                completed = False | { TimeTaken }
+              Status = + {
+                completed = True
+                duration = u32
               }
-              TimeTaken = Int
-              completed = TimeTaken(2)
-              chore = Chore {
-                description = "Vacuum"
-                owner = "Wayne"
-                completed
+              Chore = * {
+                title = String
+                description = String
+                status = Status
               }
             in
-              chore
+              Chore {
+                title = "Vacuum"
+                description = "Get the machine do the sucky in every room"
+                status = Status {
+                  completed = True
+                }
+              }
         "#,
         Ast::LetIn {
             assignments: vec![
                 Assignment {
+                    name: "Status",
+                    r#type: None,
+                    value: Box::new(Ast::Expression(Expression::Product {
+                        assignments: vec![
+                            Assignment {
+                                name: "completed",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Boolean(true))),
+                            },
+                            Assignment {
+                                name: "duration",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Reference("u32"))),
+                            },
+                        ],
+                    })),
+                },
+                Assignment {
                     name: "Chore",
                     r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Map {
+                    value: Box::new(Ast::Expression(Expression::Sum {
                         assignments: vec![
+                            Assignment {
+                                name: "title",
+                                r#type: None,
+                                value: Box::new(Ast::Expression(Expression::Reference("String"))),
+                            },
                             Assignment {
                                 name: "description",
                                 r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Reference("String"))),
                             },
                             Assignment {
-                                name: "owner",
+                                name: "status",
                                 r#type: None,
-                                value: Box::new(Ast::Expression(Expression::Reference("String"))),
-                            },
-                            Assignment {
-                                name: "completed",
-                                r#type: None,
-                                value: Box::new(Ast::Expression(Expression::Union(vec![
-                                    Expression::Boolean(false),
-                                    Expression::Map {
-                                        assignments: vec![Assignment {
-                                            name: "TimeTaken",
-                                            r#type: None,
-                                            value: Box::new(Ast::Expression(Expression::Reference(
-                                                "TimeTaken",
-                                            ))),
-                                        }],
-                                    },
-                                ]))),
+                                value: Box::new(Ast::Expression(Expression::Reference("Status"))),
                             },
                         ],
                     })),
                 },
-                Assignment {
-                    name: "TimeTaken",
-                    r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Reference("Int"))),
-                },
-                Assignment {
-                    name: "completed",
-                    r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Call {
-                        function: "TimeTaken",
-                        argument: Box::new(Expression::Int(2)),
-                    })),
-                },
-                Assignment {
-                    name: "chore",
-                    r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Call {
-                        function: "Chore",
-                        argument: Box::new(Expression::Map {
-                            assignments: vec![
-                                Assignment {
-                                    name: "description",
-                                    r#type: None,
-                                    value: Box::new(Ast::Expression(Expression::String("Vacuum"))),
-                                },
-                                Assignment {
-                                    name: "owner",
-                                    r#type: None,
-                                    value: Box::new(Ast::Expression(Expression::String("Wayne"))),
-                                },
-                                Assignment {
-                                    name: "completed",
-                                    r#type: None,
-                                    value: Box::new(Ast::Expression(Expression::Reference(
-                                        "completed",
-                                    ))),
-                                },
-                            ],
-                        }),
-                    })),
-                },
             ],
-            expression: Box::new(Expression::Reference("chore")),
+            expression: Box::new(Expression::Call {
+                function: "Chore",
+                argument: Box::new(Expression::Map {
+                    assignments: vec![
+                        Assignment {
+                            name: "title",
+                            r#type: None,
+                            value: Box::new(Ast::Expression(Expression::String("Vacuum"))),
+                        },
+                        Assignment {
+                            name: "description",
+                            r#type: None,
+                            value: Box::new(Ast::Expression(Expression::String(
+                                "Get the machine do the sucky in every room",
+                            ))),
+                        },
+                        Assignment {
+                            name: "status",
+                            r#type: None,
+                            value: Box::new(Ast::Expression(Expression::Call {
+                                function: "Status",
+                                argument: Box::new(Expression::Map {
+                                    assignments: vec![Assignment {
+                                        name: "completed",
+                                        r#type: None,
+                                        value: Box::new(Ast::Expression(Expression::Boolean(true))),
+                                    }],
+                                }),
+                            })),
+                        },
+                    ],
+                }),
+            }),
         }
     )]
     fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
@@ -457,5 +479,4 @@ mod tests {
         let actual = ast().parse(Stream::from_iter(tokens)).into_result();
         assert_eq!(actual, Ok(expected));
     }
-
 }
