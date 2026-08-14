@@ -6,7 +6,7 @@ pub enum Ast<'input> {
 
 #[derive(Debug, PartialEq)]
 pub struct LetIn<'input> {
-    pub assignments: Vec<Assignment<'input>>,
+    pub assignments: Assignments<'input>,
     pub expression: Box<Expression<'input>>,
 }
 
@@ -34,17 +34,17 @@ pub struct Math<'input> {
 
 #[derive(Debug, PartialEq)]
 pub struct Map<'input> {
-    pub assignments: Vec<Assignment<'input>>,
+    pub assignments: Assignments<'input>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Product<'input> {
-    pub assignments: Vec<Assignment<'input>>,
+    pub assignments: Assignments<'input>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Sum<'input> {
-    pub assignments: Vec<Assignment<'input>>,
+    pub assignments: Assignments<'input>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -73,3 +73,5 @@ pub struct Assignment<'input> {
     pub r#type: Option<()>,
     pub value: Box<Ast<'input>>,
 }
+
+pub type Assignments<'input> = Vec<Assignment<'input>>;
