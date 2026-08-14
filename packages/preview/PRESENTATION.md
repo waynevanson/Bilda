@@ -42,7 +42,12 @@ What we need
 4. Ecosystem
 
 <!--
-Ecosystem has great crates for Lexers, Parsers and now even Compilers (backend + JIT)
+
+Performance - Quick to run
+Strict - Ensure program does what we want and nothing more
+Structures - What we need and nothing more
+Ecosystem - Lexers, Parsers, Compilers, Runtime
+
 -->
 
 ---
@@ -59,10 +64,7 @@ Ecosystem has great crates for Lexers, Parsers and now even Compilers (backend +
 
 <!--
 
-Let's break down implementing a programming language.
-
-Constructs Presumably agreed to be valuable after decades of research.
-
+How to break it down, step by step?
 
 -->
 
@@ -113,6 +115,7 @@ use logos::Logos;
 enum Token<'input> {
   #[token("let")]
   Let,
+
   #[regexp("[a-zA-Z0-9]+")]
   Identifier(&'input str)
 }
@@ -146,6 +149,41 @@ Macro based rust crate that constructs a Lexer.
 
 1. Group tokens between other tokens.
 2. Categorizes groups into a tree.
+
+---
+
+### Parser usage
+
+```rust
+use token::Token;
+use chumsky::prelude::*;
+
+struct Ast {
+    identifier: String
+}
+
+fn ast() -> Ast {
+    // match if this token is next
+    let identifier = select! {
+        Token::Identifier(str) => Ast {
+            identifier: identifier.to_string()
+        }
+    };
+
+    // ignore_then ignores first value, keeps second
+    just(Token::Let).ignore_then(identifier)
+}
+
+fn main() {
+    let tokens = vec![Token::Let, token::Identifier("us")];
+
+    // verification only
+    ast().parse(tokens).unwrap()
+
+    // verify and create structure
+    let parsed: Ast = ast().parse(tokens).unwrap()
+}
+```
 
 ---
 
