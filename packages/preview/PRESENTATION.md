@@ -25,18 +25,21 @@ The language for languages
 
 ---
 
+# Questions
+
+- Wished they had features in their programming language of choice?
+- Now is your time!
+
+---
+
 # Why Rust?
 
-Expected from Rust
+What we need
 
 1. Performance
-2. Low level - memory management
-3. Strict
-
-What truly matters
-
-2. Structures
-3. Ecosystem
+2. Strict
+3. Structures
+4. Ecosystem
 
 <!--
 Ecosystem has great crates for Lexers, Parsers and now even Compilers (backend + JIT)
@@ -47,105 +50,65 @@ Ecosystem has great crates for Lexers, Parsers and now even Compilers (backend +
 ### Inspiration
 
 1. Cormack's presentation — Build system tool `buck2`
-2. Language trade-offs
-   - Interesting
-   - Best bang for your `buck2`
-3. Tim
-   - `buck2`
-   - ?
-   - Timbuktu
-   - ...
-
-<!-- Where is Timbuktu story from, Africa -->
+2. I love programming.
+3. OCD & the correct consistency.
 
 ---
 
-### Breakdown
+### Breakdown of implementing a language
+
+<!--
 
 Let's break down implementing a programming language.
 
-Our signature is essentially `Text -> Effect`.
-
-Transformers required to get between each step.
-
 Constructs Presumably agreed to be valuable after decades of research.
 
----
 
-#### Pipeline
+-->
 
-```
-Text  >  Tokens   >   AST  > IR > Executable > Runtime
-     Lex        Parse
-
-Text  >  Tokens   >   AST  >  IR   > Executable > Runtime
-     Lex        Parse  Compiler  Compiler  Execute
-
-```
+Signature is `Text -> Effect`.
 
 ---
 
-SUP
+#### Transformation Pipeline (Program/s)
 
-```mermaid
-stateDiagram-v2
-    Text --> Tokens: Lex via Lexer
-    Tokens --> AST: Parse via Parser
-    AST --> IR: Compile via Compiler (frontend)
-    IR --> Executable: Compile via Compiler (backend)
-    Executable --> Effect: Run via executable
-    AST --> Effect: Run via Runtime
+Interpreted
+
+```js
+Text    < "let x = 2 in x"
+Tokens  < "let" "x" "=" "2" "in" "x"
+Ast     < ast(vars (x, expr (3)), expr (identifier (x)))
+Effect  < 2
 ```
 
----
+Compiled
 
-```smcat
-
-Text,
-Tokens,
-AST,
-IR,
-Executable,
-Effect;
-
-Text => Tokens : Lex via Lexer;
-Tokens => AST : Parse via Parser;
-AST => IR : Compile via Compiler (frontend);
-IR => Executable : Compile via Compiler (backend);
-Executable => Effect : Run via executable;
-AST => Effect : Run via Runtime;
+```js
+Text        < string
+Tokens      < groups of text
+Ast       < tree of groups
+Ir          < language compiler speaks
+Executable  < file that runs code
+Effect      < code running
 ```
 
 ---
 
-### Lexer
+### Why a lexer?
 
-Transforms text into tokens.
-
-```
-Lexer: Text -> Tokens
-```
+`Text -> Tokens`
 
 1. Groups characters.
 2. Categorizes groups.
 
 ---
 
-#### `logos`
-
-Macro based rust crate that constructs a Lexer.
-
-1. Order unimportant.
-2. Allows you to skip irrelevant tokens like spaces.
-3. Context is minimal - switch between lexers for different cases.
-
----
-
-#### Example Lexer
+### How to implement lexer
 
 ```rust
 use logos::Logos;
 
+// define
 #[derive(Logos)]
 enum Token<'input> {
   #[token("let")]
@@ -154,28 +117,79 @@ enum Token<'input> {
   Identifier(&'input str)
 }
 
+// consume
 fn main() {
     let input = "let us";
     let lexer = Token::lexer(input);
     let tokens = lexer.collect().unwrap();
+    let expected = vec![Token::Let, token::Identifier("us")];
+    assert_eq(tokens, expected);
 }
 ```
 
 ---
 
-### Parser
+### Why logos?
 
-Transforms tokens into an AST.
+Macro based rust crate that constructs a Lexer.
 
-```
-Parser -> AbstractSyntaxTree
-(Tokens)
-```
+1. Ensures unique tokens at compile time - no order required.
+2. Skip irrelevant chars - like spaces.
+3. Inline transforms - string to number as rust code.
+4. Supports breaking down lexers into lexers.
 
-A Parser is essentiall `<I, C, T, E>(tokens: Array<I>, context: C) => (I, E, Context)` with the library composing multiple of them together.
+---
+
+### Why a parser?
+
+`Tokens -> AbstractSyntaxTree`
 
 1. Group tokens between other tokens.
-2. Categorizes groups.
+2. Categorizes groups into a tree.
+
+---
+
+### What is a parser?
+
+<!--
+it's a function
+
+What are it's inputs and outputs?
+
+Simple.
+-->
+
+`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+
+1. Chickens go in
+2. Pies come out
+
+---
+
+### What is a parser (actually)?
+
+`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+
+1. Tokens and any required context.
+2. Token cursor moves along.
+3. Adds to context (if required)
+4. Calculates from tokens taken
+5. Adds errors
+
+---
+
+### Why a parser combinator library?
+
+1. Parser combinator libraries allow composing multiple together.
+2. Default
+   1. increments 0 tokens
+   2. returns ()
+   3. success
+3.
+
+---
+
+### How to parse?
 
 `Chumsky` (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
 
@@ -191,7 +205,6 @@ TODODODOO
 
 #### Parser Combinator Speedrun
 
-1. Default: increments 0 tokens, returns (), success
 2.
 
 ---
