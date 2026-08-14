@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@marp-team/marp-cli": "^4.5.0",
+    "@marp-team/marp-core": "^4.4.0",
     "@mermaid-js/mermaid-cli": "^11.16.0",
     "state-machine-cat": "^15.0.8"
   }
