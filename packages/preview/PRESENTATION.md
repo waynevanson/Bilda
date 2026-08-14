@@ -72,26 +72,20 @@ Constructs Presumably agreed to be valuable after decades of research.
 
 ---
 
-#### Interpreted Languages Pipeline
-
-```mermaid
-stateDiagram-v2
-    Text --> Tokens: Lex via Lexer
-    Tokens --> AST: Parse via Parser
-    AST --> Effect: Run via Runtime
-```
+#### Pipeline
 
 ```
-Interpeter -> Effect
+Text  >  Tokens   >   AST  > IR > Executable > Runtime
+     Lex        Parse
 
-Lexer:    Text                -> Tokens
-Parser:   Tokens              -> AbstractSyntaxTree
-Runtime:  AbstractSyntaxTree  -> Effect
+Text  >  Tokens   >   AST  >  IR   > Executable > Runtime
+     Lex        Parse  Compiler  Compiler  Execute
+
 ```
 
 ---
 
-#### Compiled Languages Pipeline
+SUP
 
 ```mermaid
 stateDiagram-v2
@@ -103,10 +97,24 @@ stateDiagram-v2
     AST --> Effect: Run via Runtime
 ```
 
-Compiler: AbstractSyntaxTree -> IntermediateRepresentation
-Compiler: IntermediateRepresentation -> Executable
+---
 
-Executable -> Effect
+```smcat
+
+Text,
+Tokens,
+AST,
+IR,
+Executable,
+Effect;
+
+Text => Tokens : Lex via Lexer;
+Tokens => AST : Parse via Parser;
+AST => IR : Compile via Compiler (frontend);
+IR => Executable : Compile via Compiler (backend);
+Executable => Effect : Run via executable;
+AST => Effect : Run via Runtime;
+```
 
 ---
 
