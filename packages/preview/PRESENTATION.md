@@ -152,7 +152,7 @@ Macro based rust crate that constructs a Lexer.
 
 ---
 
-### Parser usage
+### Parser implementation
 
 ```rust
 use token::Token;
@@ -184,6 +184,10 @@ fn main() {
     let parsed: Ast = ast().parse(tokens).unwrap()
 }
 ```
+
+<!--
+Remember, not using let is invalid.
+-->
 
 ---
 
