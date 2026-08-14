@@ -37,6 +37,7 @@
           nodejs_24
           corepack_24
           cargo-tarpaulin
+          chromium
         ];
       };
     };

@@ -1,6 +1,6 @@
 ---
 marp: true
-theme: catppuccin-mocha
+theme: catppuccin-latte
 paginate: true
 header: |
   Rust for programming languages | Wayne Van Son
@@ -31,15 +31,15 @@ Expected from Rust
 
 1. Performance
 2. Low level - memory management
+3. Strict
 
 What truly matters
 
-1. Strict
 2. Structures
 3. Ecosystem
 
 <!--
-Ecosystem has great crates for Lexers, Parsers and Compilers (backend + JIT)
+Ecosystem has great crates for Lexers, Parsers and now even Compilers (backend + JIT)
 -->
 
 ---
@@ -56,7 +56,152 @@ Ecosystem has great crates for Lexers, Parsers and Compilers (backend + JIT)
    - Timbuktu
    - ...
 
-<!-- Where is TimBuckToo -->
+<!-- Where is Timbuktu story from, Africa -->
+
+---
+
+### Breakdown
+
+Let's break down implementing a programming language.
+
+Our signature is essentially `Text -> Effect`.
+
+Transformers required to get between each step.
+
+Constructs Presumably agreed to be valuable after decades of research.
+
+---
+
+#### Interpreted Languages Pipeline
+
+```mermaid
+stateDiagram-v2
+    Text --> Tokens: Lex via Lexer
+    Tokens --> AST: Parse via Parser
+    AST --> Effect: Run via Runtime
+```
+
+```
+Interpeter -> Effect
+
+Lexer:    Text                -> Tokens
+Parser:   Tokens              -> AbstractSyntaxTree
+Runtime:  AbstractSyntaxTree  -> Effect
+```
+
+---
+
+#### Compiled Languages Pipeline
+
+```mermaid
+stateDiagram-v2
+    Text --> Tokens: Lex via Lexer
+    Tokens --> AST: Parse via Parser
+    AST --> IR: Compile via Compiler (frontend)
+    IR --> Executable: Compile via Compiler (backend)
+    Executable --> Effect: Run via executable
+    AST --> Effect: Run via Runtime
+```
+
+Compiler: AbstractSyntaxTree -> IntermediateRepresentation
+Compiler: IntermediateRepresentation -> Executable
+
+Executable -> Effect
+
+---
+
+### Lexer
+
+Transforms text into tokens.
+
+```
+Lexer: Text -> Tokens
+```
+
+1. Groups characters.
+2. Categorizes groups.
+
+---
+
+#### `logos`
+
+Macro based rust crate that constructs a Lexer.
+
+1. Order unimportant.
+2. Allows you to skip irrelevant tokens like spaces.
+3. Context is minimal - switch between lexers for different cases.
+
+---
+
+#### Example Lexer
+
+```rust
+use logos::Logos;
+
+#[derive(Logos)]
+enum Token<'input> {
+  #[token("let")]
+  Let,
+  #[regexp("[a-zA-Z0-9]+")]
+  Identifier(&'input str)
+}
+
+fn main() {
+    let input = "let us";
+    let lexer = Token::lexer(input);
+    let tokens = lexer.collect().unwrap();
+}
+```
+
+---
+
+### Parser
+
+Transforms tokens into an AST.
+
+```
+Parser -> AbstractSyntaxTree
+(Tokens)
+```
+
+A Parser is essentiall `<I, C, T, E>(tokens: Array<I>, context: C) => (I, E, Context)` with the library composing multiple of them together.
+
+1. Group tokens between other tokens.
+2. Categorizes groups.
+
+`Chumsky` (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
+
+1. Precedence.
+2. Recursive descent.
+3. Applies grammar (syntax) rules.
+4. Create data so we can understand how to execute.
+5. Code execution paths
+
+TODODODOO
+
+---
+
+#### Parser Combinator Speedrun
+
+1. Default: increments 0 tokens, returns (), success
+2.
+
+---
+
+### Interpeter
+
+The heart and soul, get's things done.
+
+```
+Interpreter -> Effect
+(AbstractSyntaxTree)
+```
+
+`Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
+
+---
+
+### Compiler
 
 ---
 
@@ -125,31 +270,6 @@ tasks:
 | Concurency                                | Keywords                                 | `exec (limit = 8)`                      |
 | Concurency                                | Defaults                                 | Parallel by default                     |
 | Concurency                                | ? Constraints                            |                                         |
-
----
-
-### Proposal
-
-```
-tasks:
-  dev:
-    persistent: true
-  test:
-  build:
-    depends:
-      self: [&tasks.build]
-      down: &tasks{lint, test}
-    inputs:
-      files: ./src/**.rs
-      env: &vars
-        => vars.defaults{*}
-        ++ vars.all{ci}
-    outputs:
-      - &vars => ./target/{vars.target.platform}/{vars.projectName}
-    scripts:
-      - parallel: true # poor concurrency control and explicitness?
-        exec: ["./scripts/migrate.sh"]
-```
 
 ---
 
@@ -252,122 +372,3 @@ What makes a language stand out?
    1. LSP
    2. Dependencies
    3. Constraints
-
----
-
-### Breakdown
-
-Let's break down implementing a programming language.
-
-Our signature is essentially `Text -> Effect`.
-
-Transformers required to get between each step.
-
-Constructs Presumably agreed to be valuable after decades of research.
-
----
-
-#### Interpreted
-
-Transformers.
-
-```
-Interpeter -> Effect
-(
-  Lexer(Text) -> Tokens
-  Parser(Tokens) -> AbstractSyntaxTree
-  Runtime(AbstractSyntaxTree) -> Effect
-)
-```
-
-> Note: How you understand this syntax is different from other languages "\n"
-
----
-
-#### Compiled
-
-Transformers.
-
-```
-Compiler -> Executable
-(
-  Lexer(Text) -> Tokens
-  Parser(Tokens) -> AbstractSyntaxTree
-  Compiler(AbstractSyntaxTree) -> IntermediateRepresentation
-  Compiler(IntermediateRepresentation) -> Executable
-)
-
-Executable -> Effect
-```
-
----
-
-### Lexer
-
-Transforms text into tokens.
-
-```
-Lexer -> Tokens
-(Text)
-```
-
-1. Groups characters.
-2. Categorizes groups.
-
-`Logos` is a macro-based rust crate that constructs a Lexer, which we can then apply to the Text to create Tokens.
-
-1. Order unimportant (mostly).
-2. Allows you to skip irrelevant tokens like spaces.
-3. Context is minimal - switch between lexers for different cases.
-
----
-
-### Parser
-
-Transforms tokens into an AST.
-
-```
-Parser -> AbstractSyntaxTree
-(Tokens)
-```
-
-A Parser is essentiall `<I, C, T, E>(tokens: Array<I>, context: C) => (I, E, Context)` with the library composing multiple of them together.
-
-1. Group tokens between other tokens.
-2. Categorizes groups.
-
-`Chumsky` (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
-
-1. Precedence.
-2. Recursive descent.
-3. Applies grammar (syntax) rules.
-4. Create data so we can understand how to execute.
-5. Code execution paths
-
-TODODODOO
-
-two paths, we show compiler and interpreter then we say a thirdish.
-
----
-
-#### Parser Combinator Speedrun
-
-1. Default: increments 0 tokens, returns (), success
-2.
-
----
-
-### Intepreter
-
-The heart and soul, get's things done.
-
-```
-Interpreter -> Effect
-(AbstractSyntaxTree)
-```
-
-`Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
-
----
-
-### Compiler
