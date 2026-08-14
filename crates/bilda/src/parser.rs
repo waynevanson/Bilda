@@ -1,5 +1,7 @@
 use crate::{
-    ast::{Assignment, Ast, Expression, Math, MathSign, MathTarget},
+    ast::{
+        Assignment, Ast, Call, Expression, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+    },
     lexer::Token,
 };
 use chumsky::{
@@ -107,7 +109,7 @@ where
     just(Token::CurlyBracketLeft)
         .ignore_then(map_assignment(ast).repeated().collect())
         .then_ignore(just(Token::CurlyBracketRight))
-        .map(|assignments| Expression::Map { assignments })
+        .map(|assignments| Expression::Map(Map { assignments }))
 }
 
 fn expression_product<'tok, 'src: 'tok, I, A>(
@@ -120,7 +122,7 @@ where
     just(Token::Plus)
         .ignore_then(expression_map(ast))
         .map(|expression| match expression {
-            Expression::Map { assignments } => Expression::Product { assignments },
+            Expression::Map(Map { assignments }) => Expression::Product(Product { assignments }),
             _ => unreachable!(),
         })
 }
@@ -135,7 +137,7 @@ where
     just(Token::Asterisk)
         .ignore_then(expression_map(ast))
         .map(|expression| match expression {
-            Expression::Map { assignments } => Expression::Sum { assignments },
+            Expression::Map(Map { assignments }) => Expression::Sum(Sum { assignments }),
             _ => unreachable!(),
         })
 }
@@ -156,9 +158,11 @@ where
 
     property()
         .then(choice((paren_args, map.clone())))
-        .map(|(name, arg)| Expression::Call {
-            function: name,
-            argument: Box::new(arg),
+        .map(|(name, arg)| {
+            Expression::Call(Call {
+                function: name,
+                argument: Box::new(arg),
+            })
         })
 }
 
@@ -264,9 +268,11 @@ where
         .ignore_then(assignment(ast).repeated().at_least(1).collect())
         .then_ignore(just(Token::In))
         .then(expr)
-        .map(|(assignments, expression)| Ast::LetIn {
-            assignments,
-            expression: Box::new(expression),
+        .map(|(assignments, expression)| {
+            Ast::LetIn(LetIn {
+                assignments,
+                expression: Box::new(expression),
+            })
         })
 }
 
@@ -345,7 +351,7 @@ mod tests {
             in
               a + b
         "#,
-        Ast::LetIn {
+        Ast::LetIn(LetIn {
             assignments: vec![
                 Assignment {
                     name: "a",
@@ -355,14 +361,14 @@ mod tests {
                 Assignment {
                     name: "b",
                     r#type: None,
-                    value: Box::new(Ast::LetIn {
+                    value: Box::new(Ast::LetIn(LetIn {
                         assignments: vec![Assignment {
                             name: "c",
                             r#type: None,
                             value: Box::new(Ast::Expression(Expression::Int(1))),
                         }],
                         expression: Box::new(Expression::Reference("c")),
-                    }),
+                    })),
                 },
             ],
             expression: Box::new(Expression::Math(Math {
@@ -370,7 +376,7 @@ mod tests {
                 left: MathTarget::Reference("a"),
                 right: MathTarget::Reference("b"),
             })),
-        }
+        })
     )]
     #[case(
         r#"
@@ -393,12 +399,12 @@ mod tests {
                 }
               }
         "#,
-        Ast::LetIn {
+        Ast::LetIn(LetIn {
             assignments: vec![
                 Assignment {
                     name: "Status",
                     r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Product {
+                    value: Box::new(Ast::Expression(Expression::Product(Product {
                         assignments: vec![
                             Assignment {
                                 name: "completed",
@@ -411,12 +417,12 @@ mod tests {
                                 value: Box::new(Ast::Expression(Expression::Reference("u32"))),
                             },
                         ],
-                    })),
+                    }))),
                 },
                 Assignment {
                     name: "Chore",
                     r#type: None,
-                    value: Box::new(Ast::Expression(Expression::Sum {
+                    value: Box::new(Ast::Expression(Expression::Sum(Sum {
                         assignments: vec![
                             Assignment {
                                 name: "title",
@@ -434,12 +440,12 @@ mod tests {
                                 value: Box::new(Ast::Expression(Expression::Reference("Status"))),
                             },
                         ],
-                    })),
+                    }))),
                 },
             ],
-            expression: Box::new(Expression::Call {
+            expression: Box::new(Expression::Call(Call {
                 function: "Chore",
-                argument: Box::new(Expression::Map {
+                argument: Box::new(Expression::Map(Map {
                     assignments: vec![
                         Assignment {
                             name: "title",
@@ -456,21 +462,21 @@ mod tests {
                         Assignment {
                             name: "status",
                             r#type: None,
-                            value: Box::new(Ast::Expression(Expression::Call {
+                            value: Box::new(Ast::Expression(Expression::Call(Call {
                                 function: "Status",
-                                argument: Box::new(Expression::Map {
+                                argument: Box::new(Expression::Map(Map {
                                     assignments: vec![Assignment {
                                         name: "completed",
                                         r#type: None,
                                         value: Box::new(Ast::Expression(Expression::Boolean(true))),
                                     }],
-                                }),
-                            })),
+                                })),
+                            }))),
                         },
                     ],
-                }),
-            }),
-        }
+                })),
+            })),
+        })
     )]
     fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
         let tokens: Vec<Token<'_>> = Token::lexer(source)

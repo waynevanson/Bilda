@@ -1,10 +1,13 @@
 #[derive(Debug, PartialEq)]
 pub enum Ast<'input> {
-    LetIn {
-        assignments: Vec<Assignment<'input>>,
-        expression: Box<Expression<'input>>,
-    },
+    LetIn(LetIn<'input>),
     Expression(Expression<'input>),
+}
+
+#[derive(Debug, PartialEq)]
+pub struct LetIn<'input> {
+    pub assignments: Vec<Assignment<'input>>,
+    pub expression: Box<Expression<'input>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -30,20 +33,32 @@ pub struct Math<'input> {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Map<'input> {
+    pub assignments: Vec<Assignment<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Product<'input> {
+    pub assignments: Vec<Assignment<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Sum<'input> {
+    pub assignments: Vec<Assignment<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Call<'input> {
+    pub function: &'input str,
+    pub argument: Box<Expression<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Expression<'input> {
-    Map {
-        assignments: Vec<Assignment<'input>>,
-    },
-    Product {
-        assignments: Vec<Assignment<'input>>,
-    },
-    Sum {
-        assignments: Vec<Assignment<'input>>,
-    },
-    Call {
-        function: &'input str,
-        argument: Box<Expression<'input>>,
-    },
+    Map(Map<'input>),
+    Product(Product<'input>),
+    Sum(Sum<'input>),
+    Call(Call<'input>),
     Int(isize),
     Float(f64),
     Boolean(bool),

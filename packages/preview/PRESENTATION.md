@@ -316,7 +316,7 @@ Lexer -> Tokens
 
 `Logos` is a macro-based rust crate that constructs a Lexer, which we can then apply to the Text to create Tokens.
 
-1. Order unimportant.
+1. Order unimportant (mostly).
 2. Allows you to skip irrelevant tokens like spaces.
 3. Context is minimal - switch between lexers for different cases.
 
@@ -330,6 +330,8 @@ Transforms tokens into an AST.
 Parser -> AbstractSyntaxTree
 (Tokens)
 ```
+
+A Parser is essentiall `<I, C, T, E>(tokens: Array<I>, context: C) => (I, E, Context)` with the library composing multiple of them together.
 
 1. Group tokens between other tokens.
 2. Categorizes groups.
