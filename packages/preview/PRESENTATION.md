@@ -1,6 +1,6 @@
 ---
 marp: true
-theme: catppuccin-latte
+theme: catppuccin-mocha
 paginate: true
 header: |
   Rust for programming languages | Wayne Van Son
@@ -209,6 +209,13 @@ Simple.
 ---
 
 ### What is a parser (actually)?
+
+`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+
+1. Text & Context goes in
+2. Value and errors come out
+
+---
 
 `<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
 
