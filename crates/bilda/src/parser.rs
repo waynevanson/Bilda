@@ -1,6 +1,7 @@
 use crate::{
     ast::{
-        Assignment, Ast, Call, Expression, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+        Assignment, Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product,
+        Sum,
     },
     lexer::Token,
 };
@@ -48,6 +49,42 @@ where
         Token::True => Expression::Boolean(true),
         Token::False => Expression::Boolean(false),
     }
+}
+
+fn type_name<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, &'src str, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+{
+    select! {
+        Token::Identifier(name) => name,
+        Token::Int => "Int",
+        Token::String => "String",
+    }
+}
+
+fn expression_lambda<'tok, 'src: 'tok, I, E>(
+    expr: E,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    E: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    let param = property()
+        .then_ignore(just(Token::Colon))
+        .then(type_name())
+        .map(|(name, _ty)| name);
+
+    just(Token::RoundBracketLeft)
+        .ignore_then(param.repeated().collect())
+        .then_ignore(just(Token::RoundBracketRight))
+        .then_ignore(just(Token::Arrow))
+        .then(expr)
+        .map(|(params, body)| {
+            Expression::Lambda(Lambda {
+                params,
+                body: Box::new(body),
+            })
+        })
 }
 
 fn atom<'tok, 'src: 'tok, I, M>(
@@ -160,7 +197,7 @@ where
         .then(choice((paren_args, map.clone())))
         .map(|(name, arg)| {
             Expression::Call(Call {
-                function: name,
+                function: Box::new(Expression::Reference(name)),
                 argument: Box::new(arg),
             })
         })
@@ -232,7 +269,8 @@ where
         let product = expression_product(ast.clone());
         let sum = expression_sum(ast.clone());
         let call = call(expr.clone(), map.clone());
-        let choices = (call, sum, product, expression_math(), atom(map));
+        let lambda = expression_lambda(expr.clone());
+        let choices = (call, sum, product, lambda, expression_math(), atom(map));
 
         choice(choices)
     })
@@ -444,7 +482,7 @@ mod tests {
                 },
             ],
             expression: Box::new(Expression::Call(Call {
-                function: "Chore",
+                function: Box::new(Expression::Reference("Chore")),
                 argument: Box::new(Expression::Map(Map {
                     assignments: vec![
                         Assignment {
@@ -463,7 +501,7 @@ mod tests {
                             name: "status",
                             r#type: None,
                             value: Box::new(Ast::Expression(Expression::Call(Call {
-                                function: "Status",
+                                function: Box::new(Expression::Reference("Status")),
                                 argument: Box::new(Expression::Map(Map {
                                     assignments: vec![Assignment {
                                         name: "completed",

@@ -1,0 +1,47 @@
+use std::ffi::c_void;
+use std::os::raw::c_char;
+
+pub const TAG_INT: u64 = 0;
+pub const TAG_BOOL: u64 = 1;
+pub const TAG_STRING: u64 = 2;
+pub const TAG_MAP: u64 = 3;
+pub const TAG_FUNCTION: u64 = 4;
+pub const TAG_FLOAT: u64 = 5;
+
+/// A Bilda value is an opaque pair of `u64`s: a tag and a payload.
+#[repr(C)]
+pub struct Value {
+    pub tag: u64,
+    pub payload: u64,
+}
+
+#[repr(C)]
+pub struct StringObj {
+    pub refcount: usize,
+    pub len: usize,
+    pub data: [c_char; 0],
+}
+
+#[repr(C)]
+pub struct MapEntry {
+    pub name: *const c_char,
+    pub value: *mut Value,
+}
+
+#[repr(C)]
+pub struct MapObj {
+    pub refcount: usize,
+    pub name: *const c_char,
+    pub len: usize,
+    pub capacity: usize,
+    pub entries: *mut MapEntry,
+}
+
+pub type BildaFn = extern "C" fn(*mut Value, *mut c_void) -> *mut Value;
+
+#[repr(C)]
+pub struct ClosureObj {
+    pub refcount: usize,
+    pub func: BildaFn,
+    pub env: *mut c_void,
+}

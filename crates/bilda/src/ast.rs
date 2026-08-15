@@ -48,8 +48,14 @@ pub struct Sum<'input> {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Lambda<'input> {
+    pub params: Vec<&'input str>,
+    pub body: Box<Expression<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Call<'input> {
-    pub function: &'input str,
+    pub function: Box<Expression<'input>>,
     pub argument: Box<Expression<'input>>,
 }
 
@@ -59,6 +65,7 @@ pub enum Expression<'input> {
     Product(Product<'input>),
     Sum(Sum<'input>),
     Call(Call<'input>),
+    Lambda(Lambda<'input>),
     Int(isize),
     Float(f64),
     Boolean(bool),
