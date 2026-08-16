@@ -74,31 +74,36 @@ Signature is `Text -> Effect`.
 
 #### Transformation Pipeline (Program/s)
 
-Interpreted
-
 ```js
-Text    < "let x = 2 in x"
-Tokens  < "let" "x" "=" "2" "in" "x"
-Ast     < ast(vars (x, expr (3)), expr (identifier (x)))
-Effect  < 2
+Text          < "let x = 2 in x"
+Tokens        < "let" "x" "=" "2" "in" "x"
+Ast           < ast(vars (x, expr (3)), expr (identifier (x)))
+IR            < Intermediate Representation
+Machine Code  < Binary, JIT
+Effect        < 2
 ```
 
-Compiled
+---
 
-```js
-Text        < string
-Tokens      < groups of text
-Ast       < tree of groups
-Ir          < language compiler speaks
-Executable  < file that runs code
-Effect      < code running
-```
+#### Compile vs Interpreted
+
+Interpreted translates source code as it executes.
+
+Compiled is pretranslated.
+
+---
+
+# 1. Lexer
 
 ---
 
 ### Why a lexer?
 
+#### Signature
+
 `Text -> Tokens`
+
+#### Responsibilities
 
 1. Groups characters.
 2. Categorizes groups.
@@ -112,6 +117,7 @@ use logos::Logos;
 
 // define
 #[derive(Logos)]
+#[logos(skip(r"\s+"))]
 enum Token<'input> {
   #[token("let")]
   Let,
@@ -125,7 +131,7 @@ fn main() {
     let input = "let us";
     let lexer = Token::lexer(input);
     let tokens = lexer.collect().unwrap();
-    let expected = vec![Token::Let, token::Identifier("us")];
+    let expected = vec![Token::Let, Token::Identifier("us")];
     assert_eq(tokens, expected);
 }
 ```
@@ -136,23 +142,31 @@ fn main() {
 
 Macro based rust crate that constructs a Lexer.
 
-1. Ensures unique tokens at compile time - no order required.
+1. Ensures unique tokens at compile time via regexp/token - no order required.
 2. Skip irrelevant chars - like spaces.
 3. Inline transforms - string to number as rust code.
-4. Supports breaking down lexers into lexers.
+4. Supports breaking down lexers into lexers (ie. string interpolation)
+
+---
+
+# 2. Parser
 
 ---
 
 ### Why a parser?
 
+## Signature
+
 `Tokens -> AbstractSyntaxTree`
+
+### Responsibilities
 
 1. Group tokens between other tokens.
 2. Categorizes groups into a tree.
 
 ---
 
-### Parser implementation
+### How to create a parser
 
 ```rust
 use token::Token;
@@ -162,7 +176,7 @@ struct Ast {
     identifier: String
 }
 
-fn ast() -> Ast {
+fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
     // match if this token is next
     let identifier = select! {
         Token::Identifier(str) => Ast {
@@ -191,33 +205,30 @@ Remember, not using let is invalid.
 
 ---
 
-### What is a parser?
+### Why a parser combinator library?
 
-<!--
-it's a function
-
-What are it's inputs and outputs?
-
-Simple.
--->
-
-`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
-
-1. Chickens go in
-2. Pies come out
+1. Breaks down the problem.
+2. Composition - Join many together.
+3. Manages complex error handling between parsers.
 
 ---
 
-### What is a parser (actually)?
+### Why `chumsky`?
 
-`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+(on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
 
-1. Text & Context goes in
-2. Value and errors come out
+1. Precedence.
+2. Recursive descent.
+3. Pratt.
+4. Create data so we can understand how to execute/execution paths.
 
 ---
 
+## Signature
+
 `<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+
+## What it does
 
 1. Tokens and any required context.
 2. Token cursor moves along.
@@ -227,44 +238,29 @@ Simple.
 
 ---
 
-### Why a parser combinator library?
+# Common parsers
 
-1. Parser combinator libraries allow composing multiple together.
-2. Default
-   1. increments 0 tokens
-   2. returns ()
-   3. success
-3.
+1. Default `empty()`
+   1. increments 0 token/s.
+   2. returns `()`.
+   3. success.
+1. Constructor `just(i)`
+   1. increments 1 token/s.
+   2. returns `i`.
+   3. success.
 
----
-
-### How to parse?
-
-`Chumsky` (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
-
-1. Precedence.
-2. Recursive descent.
-3. Applies grammar (syntax) rules.
-4. Create data so we can understand how to execute.
-5. Code execution paths
-
-TODODODOO
+add errors
+add delimit
 
 ---
 
-#### Parser Combinator Speedrun
-
-2.
-
----
-
-### Interpeter
+### Code generation
 
 The heart and soul, get's things done.
 
 ```
-Interpreter -> Effect
-(AbstractSyntaxTree)
+Binary: AST -> IR/JIT -> Executable -> Effect
+Runtime: AST -> JIT -> Effect
 ```
 
 `Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
