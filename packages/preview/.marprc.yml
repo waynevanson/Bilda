@@ -5,3 +5,6 @@ themeSet:
   - "./themes/catppuccin_frappe.css"
   - "./themes/catppuccin_macchiato.css"
   - "./themes/catppuccin_mocha.css"
+  - "./themes/catppuccin_base.css"
+  - "./themes/catppuccin.css"
+  - "./themes/catppuccin_pallete.css"

@@ -1,0 +1,281 @@
+/* @theme catppuccin-base */
+
+section {
+	background-color: var(--ctp-base);
+	color: var(--ctp-text);
+
+	/* GitHub-flavoured surface variables used by the default Marp theme */
+	--fgColor-default: var(--ctp-text);
+	--fgColor-muted: var(--ctp-subtext0);
+	--fgColor-accent: var(--ctp-blue);
+	--fgColor-success: var(--ctp-green);
+	--fgColor-attention: var(--ctp-yellow);
+	--fgColor-danger: var(--ctp-red);
+	--fgColor-done: var(--ctp-mauve);
+
+	--bgColor-default: var(--ctp-base);
+	--bgColor-muted: var(--ctp-surface0);
+	--bgColor-neutral-muted: var(--ctp-surface1);
+	--bgColor-attention-muted: rgb(var(--ctp-yellow-rgb) / 0.15);
+
+	--borderColor-default: var(--ctp-surface1);
+	--borderColor-muted: rgb(var(--ctp-overlay0-rgb) / 0.7);
+	--borderColor-accent-emphasis: var(--ctp-blue);
+	--borderColor-success-emphasis: var(--ctp-green);
+	--borderColor-attention-emphasis: var(--ctp-yellow);
+	--borderColor-danger-emphasis: var(--ctp-red);
+	--borderColor-done-emphasis: var(--ctp-mauve);
+
+	--focus-outlineColor: var(--ctp-blue);
+	--h1-color: var(--ctp-text);
+	--heading-strong-color: var(--ctp-text);
+	--header-footer-color: var(--ctp-overlay1);
+	--paginate-color: var(--ctp-overlay1);
+}
+
+section::selection {
+	background-color: rgb(var(--ctp-overlay2-rgb) / 0.25);
+	color: var(--ctp-text);
+}
+
+:is(h1, marp-h1) {
+	color: var(--ctp-text);
+}
+
+:is(h2, marp-h2),
+:is(h3, marp-h3),
+:is(h4, marp-h4),
+:is(h5, marp-h5),
+:is(h6, marp-h6) {
+	color: var(--ctp-subtext0);
+}
+
+sub {
+	color: var(--ctp-overlay1);
+}
+
+a {
+	color: var(--ctp-blue);
+}
+
+a:visited {
+	color: var(--ctp-lavender);
+}
+
+a:hover,
+a:active {
+	color: var(--ctp-sky);
+}
+
+strong {
+	color: var(--ctp-text);
+}
+
+em {
+	color: var(--ctp-text);
+}
+
+hr {
+	border-color: var(--ctp-overlay0);
+}
+
+:is(code, marp-code),
+tt {
+	background-color: var(--ctp-surface1);
+	color: var(--ctp-text);
+}
+
+:is(pre, marp-pre) {
+	background-color: var(--ctp-surface0);
+	border-color: var(--ctp-surface0);
+	color: var(--ctp-text);
+}
+
+:is(pre, marp-pre) :is(code, marp-code) {
+	background-color: transparent;
+}
+
+blockquote {
+	background-color: var(--ctp-mantle);
+	border-left-color: var(--ctp-overlay0);
+	color: var(--ctp-text);
+}
+
+table th {
+	background-color: var(--ctp-surface1);
+}
+
+table td,
+table th {
+	border-color: var(--ctp-surface0);
+}
+
+table tr {
+	background-color: var(--ctp-base);
+	border-top-color: var(--ctp-surface0);
+}
+
+table tr:nth-child(2n) {
+	background-color: var(--ctp-surface0);
+}
+
+.markdown-alert.markdown-alert-note {
+	border-left-color: var(--ctp-blue);
+}
+
+.markdown-alert.markdown-alert-note .markdown-alert-title {
+	color: var(--ctp-blue);
+}
+
+.markdown-alert.markdown-alert-important {
+	border-left-color: var(--ctp-mauve);
+}
+
+.markdown-alert.markdown-alert-important .markdown-alert-title {
+	color: var(--ctp-mauve);
+}
+
+.markdown-alert.markdown-alert-warning {
+	border-left-color: var(--ctp-yellow);
+}
+
+.markdown-alert.markdown-alert-warning .markdown-alert-title {
+	color: var(--ctp-yellow);
+}
+
+.markdown-alert.markdown-alert-tip {
+	border-left-color: var(--ctp-green);
+}
+
+.markdown-alert.markdown-alert-tip .markdown-alert-title {
+	color: var(--ctp-green);
+}
+
+.markdown-alert.markdown-alert-caution {
+	border-left-color: var(--ctp-red);
+}
+
+.markdown-alert.markdown-alert-caution .markdown-alert-title {
+	color: var(--ctp-red);
+}
+
+/* Code editor / syntax highlighting */
+
+:is(pre, marp-pre) .hljs {
+	color: var(--ctp-text);
+}
+
+:is(pre, marp-pre) .hljs-comment,
+:is(pre, marp-pre) .hljs-code,
+:is(pre, marp-pre) .hljs-formula {
+	color: var(--ctp-overlay2);
+}
+
+:is(pre, marp-pre) .hljs-keyword,
+:is(pre, marp-pre) .hljs-doctag,
+:is(pre, marp-pre) .hljs-template-tag,
+:is(pre, marp-pre) .hljs-template-variable {
+	color: var(--ctp-mauve);
+}
+
+:is(pre, marp-pre) .hljs-string,
+:is(pre, marp-pre) .hljs-regexp,
+:is(pre, marp-pre) .hljs-meta .hljs-string {
+	color: var(--ctp-green);
+}
+
+:is(pre, marp-pre) .hljs-regexp,
+:is(pre, marp-pre) .hljs-meta .hljs-string {
+	color: var(--ctp-pink);
+}
+
+:is(pre, marp-pre) .hljs-symbol,
+:is(pre, marp-pre) .hljs-atom,
+:is(pre, marp-pre) .hljs-built_in {
+	color: var(--ctp-red);
+}
+
+:is(pre, marp-pre) .hljs-number,
+:is(pre, marp-pre) .hljs-literal,
+:is(pre, marp-pre) .hljs-variable.constant_ {
+	color: var(--ctp-peach);
+}
+
+:is(pre, marp-pre) .hljs-operator {
+	color: var(--ctp-sky);
+}
+
+:is(pre, marp-pre) .hljs-punctuation,
+:is(pre, marp-pre) .hljs-tag {
+	color: var(--ctp-overlay2);
+}
+
+:is(pre, marp-pre) .hljs-title.function_,
+:is(pre, marp-pre) .hljs-function {
+	color: var(--ctp-blue);
+}
+
+:is(pre, marp-pre) .hljs-title.class_,
+:is(pre, marp-pre) .hljs-title.class_.inherited__,
+:is(pre, marp-pre) .hljs-type,
+:is(pre, marp-pre) .hljs-class {
+	color: var(--ctp-yellow);
+}
+
+:is(pre, marp-pre) .hljs-variable,
+:is(pre, marp-pre) .hljs-params {
+	color: var(--ctp-maroon);
+}
+
+:is(pre, marp-pre) .hljs-attr,
+:is(pre, marp-pre) .hljs-property {
+	color: var(--ctp-blue);
+}
+
+:is(pre, marp-pre) .hljs-attribute,
+:is(pre, marp-pre) .hljs-name,
+:is(pre, marp-pre) .hljs-quote,
+:is(pre, marp-pre) .hljs-selector-attr,
+:is(pre, marp-pre) .hljs-selector-class,
+:is(pre, marp-pre) .hljs-selector-id,
+:is(pre, marp-pre) .hljs-selector-pseudo,
+:is(pre, marp-pre) .hljs-selector-tag {
+	color: var(--ctp-yellow);
+}
+
+:is(pre, marp-pre) .hljs-meta {
+	color: var(--ctp-rosewater);
+}
+
+:is(pre, marp-pre) .hljs-section {
+	color: var(--ctp-blue);
+	font-weight: 700;
+}
+
+:is(pre, marp-pre) .hljs-bullet {
+	color: var(--ctp-yellow);
+}
+
+:is(pre, marp-pre) .hljs-emphasis {
+	color: var(--ctp-text);
+	font-style: italic;
+}
+
+:is(pre, marp-pre) .hljs-strong {
+	color: var(--ctp-text);
+	font-weight: 700;
+}
+
+:is(pre, marp-pre) .hljs-addition {
+	color: var(--ctp-green);
+	background-color: rgb(var(--ctp-green-rgb) / 0.15);
+}
+
+:is(pre, marp-pre) .hljs-deletion {
+	color: var(--ctp-red);
+	background-color: rgb(var(--ctp-red-rgb) / 0.15);
+}
+
+:is(pre, marp-pre) .hljs-link {
+	color: var(--ctp-blue);
+}

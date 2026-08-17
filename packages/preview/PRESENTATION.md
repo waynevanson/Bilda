@@ -1,6 +1,6 @@
 ---
 marp: true
-theme: catppuccin-mocha
+theme: catppuccin
 paginate: true
 header: |
   Rust for programming languages | Wayne Van Son

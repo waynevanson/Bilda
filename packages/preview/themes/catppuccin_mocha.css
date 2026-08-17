@@ -1,8 +1,7 @@
 /* @theme catppuccin-mocha */
 
 @import "default";
-@import "catpuccin-pallete";
-@import "catpuccin-base";
+@import "catppuccin-pallete";
 
 :root {
 	--ctp-rosewater: var(--ctp-mocha-rosewater);
