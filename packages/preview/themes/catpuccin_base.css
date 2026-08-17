@@ -1,5 +1,27 @@
-
+/* @theme catpuccin-base */
 
 section {
-    background-color: var(--ctp-teal);
+	background-color: var(--ctp-base);
+	color: var(--ctp-text);
+}
+
+h1 {
+	color: var(--ctp-text);
+}
+
+h2,
+h3,
+h4,
+h5,
+h6 {
+	color: var(--ctp-subtext0);
+}
+
+sub {
+	color: var(--ctp-overlay1);
+}
+
+pre {
+	background-color: var(--ctp-surface0);
+	border-color: var(--ctp-surface0);
 }

@@ -1,15 +1,17 @@
 {
-  "name": "bilda-marp-preview",
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "PORT=3333 marp --engine ./engine.mjs --html --watch --server .",
-    "build": "marp --engine ./engine.mjs --html PRESENTATION.md -o dist/index.html"
-  },
-  "devDependencies": {
-    "@marp-team/marp-cli": "^4.5.0",
-    "@marp-team/marp-core": "^4.4.0",
-    "@mermaid-js/mermaid-cli": "^11.16.0",
-    "state-machine-cat": "^15.0.8"
-  }
+	"name": "bilda-marp-preview",
+	"version": "1.0.0",
+	"type": "module",
+	"scripts": {
+		"dev": "PORT=3333 marp --engine ./engine.mjs --html --watch --theme-set ./themes --server .",
+		"build": "marp --engine ./engine.mjs --html --theme-set ./themes -o dist/index.html PRESENTATION.md"
+	},
+	"devDependencies": {
+		"@csstools/postcss-sass": "^5.1.1",
+		"@marp-team/marp-cli": "^4.5.0",
+		"@marp-team/marp-core": "^4.4.0",
+		"@mermaid-js/mermaid-cli": "^11.16.0",
+		"postcss-less": "^6.0.0",
+		"state-machine-cat": "^15.0.8"
+	}
 }
