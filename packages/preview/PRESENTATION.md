@@ -24,7 +24,7 @@ The language for languages
 
 ---
 
-# Why Rust?
+## Why Rust?
 
 What we need
 
@@ -44,7 +44,7 @@ Ecosystem - Lexers, Parsers, Compilers, Runtime
 
 ---
 
-### Inspiration
+## Inspiration
 
 1. Cormack's presentation — Build system tool `buck2`
 2. I love programming.
@@ -52,7 +52,7 @@ Ecosystem - Lexers, Parsers, Compilers, Runtime
 
 ---
 
-### Breakdown of implementing a language
+## Breakdown of implementing a language
 
 <!--
 
@@ -66,22 +66,19 @@ Signature is `Text -> Effect`.
 
 #### Transformation Pipeline (Program/s)
 
-```js
-Text          < "let x = 2 in x"
-Tokens        < "let" "x" "=" "2" "in" "x"
-Ast           < ast(vars (x, expr (3)), expr (identifier (x)))
-IR            < Intermediate Representation
-Machine Code  < Binary, JIT
-Effect        < 2
 ```
-
----
-
-#### Compile vs Interpreted
-
-Interpreted translates source code as it executes.
-
-Compiled is pretranslated.
+                 ┌─ Text ───────── "let x = 2 in x"
+Lexer ═══════════│
+                 ├─ Tokens  ────── "let" "x" "=" "2" "in" "x"
+Parser ══════════│
+                 ├─ Ast ────────── ast(vars (x, expr (3)), expr (identifier (x)))
+Compiler ════════│
+                 ├─ IR? ────────── Intermediate Representation
+Code generation ═│
+                 ├─ MachineCode ── Binary, JIT
+Execution ═══════│
+                 └─ Effect ─────── 2
+```
 
 ---
 
@@ -89,20 +86,20 @@ Compiled is pretranslated.
 
 ---
 
-### Why a lexer?
+## Why a lexer?
 
-#### Signature
+### Signature
 
 `Text -> Tokens`
 
-#### Responsibilities
+### Responsibilities
 
 1. Groups characters.
 2. Categorizes groups.
 
 ---
 
-### How to implement lexer
+## How to implement lexer
 
 ```rust
 use logos::Logos;
@@ -128,7 +125,7 @@ fn main() {
 
 ---
 
-### Why logos?
+## Why logos?
 
 Macro based rust crate that constructs a Lexer.
 
@@ -143,9 +140,9 @@ Macro based rust crate that constructs a Lexer.
 
 ---
 
-### Why a parser?
+## Why a parser?
 
-## Signature
+### Signature
 
 `Tokens -> AbstractSyntaxTree`
 
