@@ -4,7 +4,6 @@ theme: catppuccin-mocha
 paginate: true
 header: |
   Rust for programming languages | Wayne Van Son
-transition: fade 0.1s
 ---
 
 <!--
@@ -22,13 +21,6 @@ Explain design choices
 The language for languages
 
 <sub>Wayne Van Son</sub>
-
----
-
-# Questions
-
-- Wished they had features in their programming language of choice?
-- Now is your time!
 
 ---
 
@@ -115,7 +107,6 @@ Compiled is pretranslated.
 ```rust
 use logos::Logos;
 
-// define
 #[derive(Logos)]
 #[logos(skip(r"\s+"))]
 enum Token<'input> {
@@ -126,7 +117,6 @@ enum Token<'input> {
   Identifier(&'input str)
 }
 
-// consume
 fn main() {
     let input = "let us";
     let lexer = Token::lexer(input);
