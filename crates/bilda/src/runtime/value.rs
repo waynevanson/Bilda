@@ -8,9 +8,10 @@ pub const TAG_MAP: u64 = 3;
 pub const TAG_FUNCTION: u64 = 4;
 pub const TAG_FLOAT: u64 = 5;
 
-/// A Bilda value is an opaque pair of `u64`s: a tag and a payload.
+/// A Bilda value is a reference-counted pair of a tag and a payload.
 #[repr(C)]
 pub struct Value {
+    pub refcount: usize,
     pub tag: u64,
     pub payload: u64,
 }

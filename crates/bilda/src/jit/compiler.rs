@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::mem;
 
 use cranelift::codegen::ir::{FuncRef, UserFuncName};
+use cranelift::codegen::ir::condcodes::IntCC;
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
@@ -10,7 +11,7 @@ use crate::ast::{Ast, Call, Expression, LetIn, Map, Math, MathSign, MathTarget, 
 use crate::runtime::{
     RawValue, bilda_alloc_map, bilda_apply, bilda_decref, bilda_incref, bilda_make_bool,
     bilda_make_closure, bilda_make_float, bilda_make_int, bilda_make_string, bilda_map_rename,
-    bilda_map_set, bilda_print, bilda_reset_arena,
+    bilda_map_set, bilda_print,
 };
 
 type CValue = Value;
@@ -41,10 +42,6 @@ impl Compiled {
 }
 
 pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
-    unsafe {
-        bilda_reset_arena();
-    }
-
     let mut flag_builder = settings::builder();
     flag_builder.set("use_colocated_libcalls", "false").unwrap();
     flag_builder.set("is_pic", "false").unwrap();
@@ -132,6 +129,7 @@ pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
                 bool_type,
             };
             let body = fcx.compile_expr(&mut bcx, &lambda.body, &mut env)?;
+            env.decref_scope_except(&mut bcx, &mut fcx, body)?;
             bcx.ins().return_(&[body]);
             bcx.seal_all_blocks();
             bcx.finalize();
@@ -187,21 +185,25 @@ struct Slot {
 
 struct Env<'a> {
     scopes: Vec<HashMap<&'a str, Slot>>,
+    bindings: Vec<Vec<CValue>>,
 }
 
 impl<'a> Env<'a> {
     fn new() -> Self {
         Self {
             scopes: vec![HashMap::new()],
+            bindings: vec![Vec::new()],
         }
     }
 
     fn push_scope(&mut self) {
         self.scopes.push(HashMap::new());
+        self.bindings.push(Vec::new());
     }
 
     fn pop_scope(&mut self) {
         self.scopes.pop();
+        self.bindings.pop();
     }
 
     fn insert(&mut self, name: &'a str, value: CValue, is_function: bool) {
@@ -209,10 +211,36 @@ impl<'a> Env<'a> {
             .last_mut()
             .unwrap()
             .insert(name, Slot { value, is_function });
+        self.bindings.last_mut().unwrap().push(value);
     }
 
     fn get(&self, name: &str) -> Option<&Slot> {
         self.scopes.iter().rev().find_map(|scope| scope.get(name))
+    }
+
+    fn decref_scope_except<'m>(
+        &self,
+        bcx: &mut FunctionBuilder,
+        fcx: &mut FuncCx<'a, 'm>,
+        except: CValue,
+    ) -> Result<(), CompileError> {
+        for &binding in self.bindings.last().unwrap() {
+            let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
+            let skip_block = bcx.create_block();
+            let drop_block = bcx.create_block();
+            let merge_block = bcx.create_block();
+            bcx.ins().brif(cond, skip_block, &[], drop_block, &[]);
+            bcx.switch_to_block(drop_block);
+            fcx.call_helper(bcx, "bilda_decref", &[binding])?;
+            bcx.ins().jump(merge_block, &[]);
+            bcx.switch_to_block(skip_block);
+            bcx.ins().jump(merge_block, &[]);
+            bcx.switch_to_block(merge_block);
+            bcx.seal_block(skip_block);
+            bcx.seal_block(drop_block);
+            bcx.seal_block(merge_block);
+        }
+        Ok(())
     }
 }
 
@@ -266,6 +294,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                     env.insert(assignment.name, value, is_function);
                 }
                 let result = self.compile_expr(bcx, expression, env)?;
+                env.decref_scope_except(bcx, self, result)?;
                 env.pop_scope();
                 Ok(result)
             }
@@ -304,7 +333,10 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                     return self.call_helper(bcx, "bilda_make_string", &[ptr, len]);
                 }
                 match env.get(name) {
-                    Some(slot) => Ok(slot.value),
+                    Some(slot) => {
+                        self.call_helper(bcx, "bilda_incref", &[slot.value])?;
+                        Ok(slot.value)
+                    }
                     None => Err(CompileError::UnknownReference((*name).to_string())),
                 }
             }
@@ -356,6 +388,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                 .ins()
                 .iconst(self.int_type, assignment.name.len() as i64);
             self.call_helper(bcx, "bilda_map_set", &[map, field_ptr, field_len, value])?;
+            self.call_helper(bcx, "bilda_decref", &[value])?;
         }
         Ok(map)
     }
@@ -373,7 +406,10 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                 if let Some(slot) = env.get(name)
                     && slot.is_function
                 {
-                    return self.call_helper(bcx, "bilda_apply", &[slot.value, arg]);
+                    self.call_helper(bcx, "bilda_incref", &[slot.value])?;
+                    let result = self.call_helper(bcx, "bilda_apply", &[slot.value, arg])?;
+                    self.call_helper(bcx, "bilda_decref", &[slot.value])?;
+                    return Ok(result);
                 }
 
                 let name_ptr = bcx.ins().iconst(self.pointer_type, name.as_ptr() as i64);
@@ -383,7 +419,9 @@ impl<'a, 'm> FuncCx<'a, 'm> {
             }
             other => {
                 let callee = self.compile_expr(bcx, other, env)?;
-                self.call_helper(bcx, "bilda_apply", &[callee, arg])
+                let result = self.call_helper(bcx, "bilda_apply", &[callee, arg])?;
+                self.call_helper(bcx, "bilda_decref", &[callee])?;
+                Ok(result)
             }
         }
     }
@@ -397,8 +435,8 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         let left = self.compile_math_target(bcx, &math.left, env)?;
         let right = self.compile_math_target(bcx, &math.right, env)?;
 
-        let left_val = bcx.ins().load(self.int_type, MemFlags::new(), left, 8);
-        let right_val = bcx.ins().load(self.int_type, MemFlags::new(), right, 8);
+        let left_val = bcx.ins().load(self.int_type, MemFlags::new(), left, 16);
+        let right_val = bcx.ins().load(self.int_type, MemFlags::new(), right, 16);
 
         let result = match math.sign {
             MathSign::Addition => bcx.ins().iadd(left_val, right_val),
@@ -407,7 +445,10 @@ impl<'a, 'm> FuncCx<'a, 'm> {
             MathSign::Division => bcx.ins().sdiv(left_val, right_val),
         };
 
-        self.call_helper(bcx, "bilda_make_int", &[result])
+        let result = self.call_helper(bcx, "bilda_make_int", &[result])?;
+        self.call_helper(bcx, "bilda_decref", &[left])?;
+        self.call_helper(bcx, "bilda_decref", &[right])?;
+        Ok(result)
     }
 
     fn compile_math_target(
@@ -422,7 +463,10 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                 self.call_helper(bcx, "bilda_make_int", &[c])
             }
             MathTarget::Reference(name) => match env.get(name) {
-                Some(slot) => Ok(slot.value),
+                Some(slot) => {
+                    self.call_helper(bcx, "bilda_incref", &[slot.value])?;
+                    Ok(slot.value)
+                }
                 None => Err(CompileError::UnknownReference((*name).to_string())),
             },
             MathTarget::Math(math) => self.compile_math(bcx, math, env),
@@ -506,7 +550,6 @@ fn register_runtime_symbols(builder: &mut JITBuilder) {
     builder.symbol("bilda_incref", bilda_incref as *const u8);
     builder.symbol("bilda_decref", bilda_decref as *const u8);
     builder.symbol("bilda_print", bilda_print as *const u8);
-    builder.symbol("bilda_reset_arena", bilda_reset_arena as *const u8);
 }
 
 fn declare_helpers(
