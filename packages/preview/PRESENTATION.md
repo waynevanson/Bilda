@@ -375,6 +375,12 @@ It generates machine code inside your app, gives you a pointer to the function y
 
 Should we use the JIT for cranelift
 
+steps
+
+1. Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
+2. Return pointer to machine code.
+3. Execute it (MachineCode -> Effect).
+
 or skip this step and intepret it ourselves?
 
 ---
