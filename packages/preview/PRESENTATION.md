@@ -29,7 +29,7 @@ The language for languages
 What we need
 
 1. Performance
-2. Strict
+2. Strictness
 3. Structures
 4. Ecosystem
 
@@ -47,8 +47,9 @@ Ecosystem - Lexers, Parsers, Compilers, Runtime
 ## Inspiration
 
 1. Cormack's presentation — Build system tool `buck2`
-2. I love programming.
-3. OCD & the correct consistency.
+2. How to make languages better?
+3. Monads
+4. Rust project
 
 ---
 
@@ -73,7 +74,7 @@ Lexer ═══════════│
 Parser ══════════│
                  ├─ Ast ────────── ast(vars (x, expr (3)), expr (identifier (x)))
 Compiler ════════│
-                 ├─ IR? ────────── Intermediate Representation
+                 ├─ IR ─────────── Intermediate Representation
 Code generation ═│
                  ├─ MachineCode ── Binary, JIT
 Execution ═══════│
@@ -204,57 +205,130 @@ Remember, not using let is invalid.
 
 (on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
 
-1. Precedence.
+1. Performant.
 2. Recursive descent.
-3. Pratt.
-4. Create data so we can understand how to execute/execution paths.
+3. Pratt (precedence).
+4. Composition.
 
 ---
 
-## Signature
+## Signature of parser
 
-`<I, C, T, E>(tokens: Array<I>, context: C) -> (I, E, Context)`
+```rust
+<Token, Context, Value, Error>
+(tokens: Stream<Token>, context: &mut Context) ->
+(Option<Value>, Vec<Error>)
+```
 
-## What it does
+## Design
 
-1. Tokens and any required context.
+1. Tokens and context.
 2. Token cursor moves along.
-3. Adds to context (if required)
-4. Calculates from tokens taken
-5. Adds errors
+3. Mutate context.
+4. Calculates from tokens taken.
+5. Adds errors.
 
 ---
 
-# Common parsers
+## Parsers - Constructors
 
 1. Default `empty()`
    1. increments 0 token/s.
    2. returns `()`.
    3. success.
-1. Constructor `just(i)`
+1. Match 1 `just(i)`
    1. increments 1 token/s.
    2. returns `i`.
    3. success.
 
-add errors
-add delimit
+---
+
+## Parsers - Combinators
+
+1. `parser_a.then_ignore(parser_b)`
+   1. Parse both, keep first parser value.
+2. `parser_a.ignore_then(parser_b)`
+   1. Parse both, keep second value.
 
 ---
 
-### Code generation
+## Parsers - Combinators (cont.1)
+
+1. `parser.delimited_by(parser_a, parser_b)`
+   1. `parser_a.ignore_then(parser).then_ignore(parser)`
+   2. Returns value from parser.
+1. `parser.repeated().at_least(1).at_most(5).collect()`
+   1. Iterator-like for mulitple of same value.
+
+---
+
+## Fancy parsers
+
+1. `recursive(|parser_a| { parser_a })`
+   1. Create a parser that relies on itself.
+2. `parser.pratt((parser_a, parser_b))`
+   1. Parse precedence for infix stuff.
+
+---
+
+# 3. Compiler
+
+---
+
+## Signature
+
+```
+Ast -> IR
+```
+
+## Responsibilities
+
+1. Additional verification (check types, borrows, etc.)
+
+---
+
+## Why compiler to IR?
+
+1. Allow multi-arch translate to machine readable code.
+
+## Tools
+
+1. LLVM
+2. **cranelift**
+
+---
+
+Our flow
+
+```
+Ast -> Jit -> Execution
+```
+
+---
+
+# 4. Code generation
+
+---
 
 The heart and soul, get's things done.
-
-```
-Binary: AST -> IR/JIT -> Executable -> Effect
-Runtime: AST -> JIT -> Effect
-```
 
 `Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
 
 ---
 
-### Compiler
+# 5. Execution
+
+---
+
+---
+
+# FIN
+
+# FIN
+
+# FIN
+
+---
 
 ---
 
