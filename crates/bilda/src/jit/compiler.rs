@@ -652,6 +652,7 @@ mod tests {
     use super::*;
     use crate::lexer::Token;
     use crate::parser::ast;
+    use crate::runtime::bilda_decref;
     use crate::runtime::value::{MapObj, StringObj, TAG_BOOL, TAG_INT, TAG_MAP, TAG_STRING};
     use chumsky::Parser;
     use chumsky::input::Stream;
@@ -672,6 +673,7 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 42);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 
     #[test]
@@ -681,6 +683,7 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 9);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 
     #[test]
@@ -690,6 +693,7 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 3);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 
     #[test]
@@ -700,6 +704,7 @@ mod tests {
         assert_eq!(v.tag, TAG_STRING);
         let obj = unsafe { &*(v.payload as *const StringObj) };
         assert_eq!(obj.len, 5);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 
     #[test]
@@ -724,6 +729,7 @@ mod tests {
         assert_eq!(field_name.to_str().unwrap(), "completed");
         assert_eq!(unsafe { (*entry.value).tag }, TAG_BOOL);
         assert_eq!(unsafe { (*entry.value).payload }, 0);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 
     #[test]
@@ -733,5 +739,6 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 6);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 }
