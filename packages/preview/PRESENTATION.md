@@ -49,7 +49,7 @@ Ecosystem - Lexers, Parsers, Compilers, Runtime
 1. Cormack's presentation — Build system tool `buck2`
 2. How to make languages better?
 3. Monads
-4. Rust project
+4. Rust project way to advanced
 
 ---
 
@@ -262,7 +262,7 @@ Remember, not using let is invalid.
 
 ---
 
-## Fancy parsers
+## Parsers - Recursive
 
 1. `recursive(|parser_a| { parser_a })`
    1. Create a parser that relies on itself.
@@ -278,31 +278,41 @@ Remember, not using let is invalid.
 ## Signature
 
 ```
-Ast -> IR
+> Ast -> ()
+  Ast -> IR
 ```
 
 ## Responsibilities
 
-1. Additional verification (check types, borrows, etc.)
+1. Language checks
+   1. Type checking
+   2. Borrow checking
+   3. ???
+2. Performance optimizations.
 
 ---
 
-## Why compiler to IR?
+## Signature
 
-1. Allow multi-arch translate to machine readable code.
+```
+  Ast -> ()
+> Ast -> IR
+```
 
-## Tools
+## Intermediate Representation (IR)
 
-1. LLVM
-2. **cranelift**
+1. Code
+2. Make the implicit explicit (types, drops, jumps, arithmetic)
+3. Indirection
+4. Compile to 1 code instead of many codes (architecture targets)
+5. Processable by LLVM or cranelift (different formats)
 
 ---
 
-Our flow
+## Why Compile?
 
-```
-Ast -> Jit -> Execution
-```
+1. Developer experience - heart types
+2. Performance without wasting time
 
 ---
 
@@ -310,7 +320,28 @@ Ast -> Jit -> Execution
 
 ---
 
-The heart and soul, get's things done.
+## Signature
+
+```
+IR -> MachineCode
+```
+
+## Responsibilities
+
+1. Generate machine code
+2. Target specific
+   1. Architecture
+   2. OS
+3. ~~Creating an executable~~ not always!
+
+---
+
+## Tools
+
+1. `cranelift`
+2. LLVM
+
+---
 
 `Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
 
