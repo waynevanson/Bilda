@@ -24,6 +24,16 @@ The language for languages
 
 ---
 
+Built a language before?
+
+---
+
+# Demonstration?
+
+- Demo gods please praise us.
+
+---
+
 ## Why Rust?
 
 What we need
@@ -311,8 +321,8 @@ Remember, not using let is invalid.
 
 ## Why Compile?
 
-1. Developer experience - heart types
-2. Performance without wasting time
+2. Performance & Time save - no reinventing the wheel.
+1. Developer experience.
 
 ---
 
@@ -350,6 +360,18 @@ IR -> MachineCode
 # 5. Execution
 
 ---
+
+Compiled languages
+call a file
+
+Interpeted languages
+execute in the compiler
+
+---
+
+## JIT
+
+It generates machine code inside your app, gives you a pointer to the function you can then call to get a response back.
 
 ---
 
