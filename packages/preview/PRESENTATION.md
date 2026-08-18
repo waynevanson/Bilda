@@ -373,6 +373,10 @@ execute in the compiler
 
 It generates machine code inside your app, gives you a pointer to the function you can then call to get a response back.
 
+Should we use the JIT for cranelift
+
+or skip this step and intepret it ourselves?
+
 ---
 
 # FIN
