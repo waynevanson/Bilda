@@ -6,16 +6,6 @@ header: |
   Rust for programming languages | Wayne Van Son
 ---
 
-<!--
-
-Alright
-Show the language we're making straight away
-Explain what the example does
-Explain how to build the language
-Explain design choices
-
--->
-
 # Rust
 
 The language for languages
@@ -24,13 +14,25 @@ The language for languages
 
 ---
 
-Built a language before?
-
----
-
 # Demonstration?
 
-- Demo gods please praise us.
+```
+let
+  a = 2
+  b = True
+  d = "Hello, World!"
+  e = [a b c d e]
+  f = list::map
+    on
+      z = [5, 3, 2, 1]
+    do
+      x = z + 4
+      y = x * (z + 2)
+    in
+      x * y * z
+in
+  f
+```
 
 ---
 
@@ -107,6 +109,7 @@ Execution ═══════│
 
 1. Groups characters.
 2. Categorizes groups.
+3. List.
 
 ---
 
@@ -140,10 +143,11 @@ fn main() {
 
 Macro based rust crate that constructs a Lexer.
 
-1. Ensures unique tokens at compile time via regexp/token - no order required.
-2. Skip irrelevant chars - like spaces.
-3. Inline transforms - string to number as rust code.
-4. Supports breaking down lexers into lexers (ie. string interpolation)
+1. Quick
+2. Compile time distinct patterns.
+3. Skip patterns.
+4. Inline transforms - Coerce `&str` to value.
+5. Lexer composition - String interpolation.
 
 ---
 
@@ -159,8 +163,9 @@ Macro based rust crate that constructs a Lexer.
 
 ### Responsibilities
 
-1. Group tokens between other tokens.
-2. Categorizes groups into a tree.
+1. Group tokens.
+2. Categorizes groups
+3. Tree.
 
 ---
 
@@ -174,26 +179,20 @@ struct Ast {
     identifier: String
 }
 
+// returns a parser for Ast
 fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
-    // match if this token is next
+    // parser - match if this token is next
     let identifier = select! {
         Token::Identifier(str) => Ast {
             identifier: identifier.to_string()
         }
     };
 
-    // ignore_then ignores first value, keeps second
-    just(Token::Let).ignore_then(identifier)
-}
+    // parser - let keyword
+    let let_keyword = just(Token::Let);
 
-fn main() {
-    let tokens = vec![Token::Let, token::Identifier("us")];
-
-    // verification only
-    ast().parse(tokens).unwrap()
-
-    // verify and create structure
-    let parsed: Ast = ast().parse(tokens).unwrap()
+    // parser - ignores first value, keeps second
+    let_keyword.ignore_then(identifier)
 }
 ```
 
@@ -203,11 +202,26 @@ Remember, not using let is invalid.
 
 ---
 
+```rust
+fn main() {
+    // after lex
+    let tokens = vec![Token::Let, token::Identifier("us")];
+
+    // verification only
+    ast().check(tokens).unwrap()
+
+    // verify and create structure
+    let parsed: Ast = ast().parse(tokens).unwrap()
+}
+```
+
+---
+
 ### Why a parser combinator library?
 
-1. Breaks down the problem.
-2. Composition - Join many together.
-3. Manages complex error handling between parsers.
+1. Decompose problem into pieces
+2. Composition - Join many together
+3. Complex error handling managed
 
 ---
 
@@ -219,6 +233,7 @@ Remember, not using let is invalid.
 2. Recursive descent.
 3. Pratt (precedence).
 4. Composition.
+5. `check` and `run` mode.
 
 ---
 
@@ -255,19 +270,21 @@ Remember, not using let is invalid.
 
 ## Parsers - Combinators
 
-1. `parser_a.then_ignore(parser_b)`
+1. `parser_a.then(parser_b) -> (A, B)`
+   1. Parse both, keep both.
+1. `parser_a.then_ignore(parser_b) -> A`
    1. Parse both, keep first parser value.
-2. `parser_a.ignore_then(parser_b)`
+1. `parser_a.ignore_then(parser_b) -> B`
    1. Parse both, keep second value.
 
 ---
 
 ## Parsers - Combinators (cont.1)
 
-1. `parser.delimited_by(parser_a, parser_b)`
+1. `parser.delimited_by(parser_a, parser_b) -> T`
    1. `parser_a.ignore_then(parser).then_ignore(parser)`
    2. Returns value from parser.
-1. `parser.repeated().at_least(1).at_most(5).collect()`
+1. `parser.repeated().at_least(1).at_most(5).collect() -> Vec<T>`
    1. Iterator-like for mulitple of same value.
 
 ---
@@ -302,6 +319,13 @@ Remember, not using let is invalid.
 
 ---
 
+## Why Compile?
+
+1. 1 per IR instead of 1 per target `(n + n, n * n)`
+2. Developer experience.
+
+---
+
 ## Signature
 
 ```
@@ -312,17 +336,10 @@ Remember, not using let is invalid.
 ## Intermediate Representation (IR)
 
 1. Code
-2. Make the implicit explicit (types, drops, jumps, arithmetic)
-3. Indirection
-4. Compile to 1 code instead of many codes (architecture targets)
-5. Processable by LLVM or cranelift (different formats)
-
----
-
-## Why Compile?
-
-2. Performance & Time save - no reinventing the wheel.
-1. Developer experience.
+2. Indirection
+3. Compile to 1 code instead of many codes (architecture targets)
+4. Processable by LLVM or cranelift (different formats)
+5. Make the implicit explicit (types, drops, jumps, arithmetic)
 
 ---
 
@@ -348,12 +365,8 @@ IR -> MachineCode
 
 ## Tools
 
-1. `cranelift`
-2. LLVM
-
----
-
-`Cranelift` is a code generator & compiler backend, with modules like `cranelift-jit` to transform our AST to platform-agnostic intepreter.
+1. LLVM
+2. cranelift
 
 ---
 
@@ -361,11 +374,20 @@ IR -> MachineCode
 
 ---
 
-Compiled languages
-call a file
+## Signature
 
-Interpeted languages
-execute in the compiler
+```
+MachineCode -> Effect
+```
+
+## Responsibilities
+
+1. Run machine code.
+2. Direct from binary or in an intepreter.
+
+---
+
+# How we gon do it fam?
 
 ---
 
@@ -373,15 +395,11 @@ execute in the compiler
 
 It generates machine code inside your app, gives you a pointer to the function you can then call to get a response back.
 
-Should we use the JIT for cranelift
-
 steps
 
 1. Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
 2. Return pointer to machine code.
 3. Execute it (MachineCode -> Effect).
-
-or skip this step and intepret it ourselves?
 
 ---
 
