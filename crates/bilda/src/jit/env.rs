@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use cranelift::prelude::{FunctionBuilder, InstBuilder, IntCC, Value};
 
 use crate::jit::compiler::Compiler;
-use crate::jit::error::CompileError;
+use crate::jit::error::{CompileError, InternalError};
 
 pub(crate) struct Slot {
     pub value: Value,
@@ -39,14 +39,16 @@ impl<'a> Env<'a> {
         value: Value,
         is_function: bool,
     ) -> Result<(), CompileError> {
-        let scope = self.scopes.last_mut().ok_or_else(|| {
-            CompileError::Internal("env scope stack underflow".into())
-        })?;
+        let scope = self
+            .scopes
+            .last_mut()
+            .ok_or(InternalError::EnvScopeStackUnderflow)?;
         scope.insert(name, Slot { value, is_function });
 
-        let bindings = self.bindings.last_mut().ok_or_else(|| {
-            CompileError::Internal("env binding stack underflow".into())
-        })?;
+        let bindings = self
+            .bindings
+            .last_mut()
+            .ok_or(InternalError::EnvBindingStackUnderflow)?;
         bindings.push(value);
         Ok(())
     }
@@ -61,9 +63,10 @@ impl<'a> Env<'a> {
         compiler: &mut Compiler<'a>,
         except: Value,
     ) -> Result<(), CompileError> {
-        let bindings = self.bindings.last().ok_or_else(|| {
-            CompileError::Internal("env binding stack underflow".into())
-        })?;
+        let bindings = self
+            .bindings
+            .last()
+            .ok_or(InternalError::EnvBindingStackUnderflow)?;
         for &binding in bindings {
             let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
             let skip_block = bcx.create_block();

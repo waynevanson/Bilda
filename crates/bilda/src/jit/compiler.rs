@@ -12,7 +12,7 @@ use crate::ast::{
 use crate::jit::collect::value_is_function;
 use crate::jit::compiled::Compiled;
 use crate::jit::env::Env;
-use crate::jit::error::CompileError;
+use crate::jit::error::{CodegenError, CompileError, ReferenceError, UnsupportedError};
 use crate::jit::helpers::RuntimeHelpers;
 use crate::jit::lambdas::{LambdaTable, Lambdas};
 use crate::jit::symbols::register_runtime_symbols;
@@ -31,17 +31,18 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     pub fn new() -> Result<Self, CompileError> {
         let mut flag_builder = settings::builder();
-        flag_builder
-            .set("use_colocated_libcalls", "false")
-            .map_err(|e| CompileError::Settings(e.to_string()))?;
-        flag_builder
-            .set("is_pic", "false")
-            .map_err(|e| CompileError::Settings(e.to_string()))?;
-        let isa_builder = cranelift_native::builder()
-            .map_err(|msg| CompileError::Codegen(msg.to_string()))?;
-        let isa = isa_builder
-            .finish(settings::Flags::new(flag_builder))
-            .map_err(|e| CompileError::Codegen(e.to_string()))?;
+        flag_builder.set("use_colocated_libcalls", "false")?;
+        flag_builder.set("is_pic", "false")?;
+        let isa_builder = cranelift_native::builder().map_err(|msg| match msg {
+            "support for architecture disabled at compile time" => {
+                CompileError::from(CodegenError::SupportDisabled)
+            }
+            "x86 support requires SSE2" => {
+                CompileError::from(CodegenError::MissingCpuFeature { feature: "SSE2" })
+            }
+            _ => CompileError::from(CodegenError::HostUnsupported),
+        })?;
+        let isa = isa_builder.finish(settings::Flags::new(flag_builder))?;
 
         let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
         register_runtime_symbols(&mut builder);
@@ -85,9 +86,10 @@ impl<'a> Compiler<'a> {
             };
 
             if lambda.params.len() != 1 {
-                return Err(CompileError::Unsupported(
-                    "only single-parameter lambdas are supported".into(),
-                ));
+                return Err(UnsupportedError::LambdaArity {
+                    found: lambda.params.len(),
+                }
+                .into());
             }
 
             let func_id = self.lambda_table.func_ids[&lambda_expr];
@@ -259,7 +261,9 @@ impl<'a> Compiler<'a> {
                         self.call_helper(bcx, "bilda_incref", &[slot.value])?;
                         Ok(slot.value)
                     }
-                    None => Err(CompileError::UnknownReference((*name).to_string())),
+                    None => Err(CompileError::from(ReferenceError::Unknown {
+                        name: (*name).to_string(),
+                    })),
                 }
             }
             Expression::Not(Boolean(b)) => {
@@ -278,7 +282,7 @@ impl<'a> Compiler<'a> {
                 let func_id = self
                     .lambda_table
                     .get(key)
-                    .ok_or_else(|| CompileError::Unsupported("lambda not collected".to_string()))?;
+                    .ok_or_else(|| CompileError::from(UnsupportedError::LambdaNotCollected))?;
                 let func_ref = self.module.declare_func_in_func(func_id, bcx.func);
                 let func_addr = bcx.ins().func_addr(self.types.pointer, func_ref);
                 let null_env = bcx.ins().iconst(self.types.pointer, 0);
@@ -388,7 +392,9 @@ impl<'a> Compiler<'a> {
                     self.call_helper(bcx, "bilda_incref", &[slot.value])?;
                     Ok(slot.value)
                 }
-                None => Err(CompileError::UnknownReference((*name).to_string())),
+                None => Err(CompileError::from(ReferenceError::Unknown {
+                    name: (*name).to_string(),
+                })),
             },
             MathTarget::Math(math) => self.compile_math(bcx, math, env),
         }
