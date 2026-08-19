@@ -13,7 +13,7 @@ use crate::runtime::value::{
 
 pub mod value;
 
-pub use crate::runtime::value::{BildaFn as FunctionPointer, Value as RawValue};
+pub use crate::runtime::value::Value as RawValue;
 
 unsafe fn allocate(layout: Layout) -> *mut u8 {
     let ptr = alloc(layout);
@@ -36,11 +36,14 @@ unsafe fn copy_name(data: *const c_char, len: usize) -> *const c_char {
 unsafe fn alloc_value(tag: u64, payload: u64) -> *mut Value {
     let layout = Layout::new::<Value>();
     let value = allocate(layout) as *mut Value;
-    ptr::write(value, Value {
-        refcount: 1,
-        tag,
-        payload,
-    });
+    ptr::write(
+        value,
+        Value {
+            refcount: 1,
+            tag,
+            payload,
+        },
+    );
     value
 }
 
@@ -294,18 +297,12 @@ pub unsafe extern "C" fn bilda_print(value: *mut Value) {
         TAG_MAP => {
             let obj = (*value).payload as *const MapObj;
             if !(*obj).name.is_null() {
-                print!(
-                    "{} ",
-                    CStr::from_ptr((*obj).name).to_string_lossy()
-                );
+                print!("{} ", CStr::from_ptr((*obj).name).to_string_lossy());
             }
             print!("{{ ");
             for i in 0..(*obj).len {
                 let entry = &*(*obj).entries.add(i);
-                print!(
-                    "{} = ",
-                    CStr::from_ptr(entry.name).to_string_lossy()
-                );
+                print!("{} = ", CStr::from_ptr(entry.name).to_string_lossy());
                 bilda_print(entry.value);
                 if i + 1 < (*obj).len {
                     print!(", ");

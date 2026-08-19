@@ -109,7 +109,6 @@ where
         .then(ast)
         .map(|(name, value)| Assignment {
             name,
-            r#type: None,
             value: Box::new(value),
         })
 }
@@ -121,7 +120,6 @@ where
 {
     property().map(|name| Assignment {
         name,
-        r#type: None,
         value: Box::new(Ast::Expression(Expression::Reference(name))),
     })
 }
@@ -288,7 +286,6 @@ where
         .then(ast)
         .map(|(name, value)| Assignment {
             name,
-            r#type: None,
             value: Box::new(value),
         })
 }
@@ -393,16 +390,13 @@ mod tests {
             assignments: vec![
                 Assignment {
                     name: "a",
-                    r#type: None,
                     value: Box::new(Ast::Expression(Expression::Int(2))),
                 },
                 Assignment {
                     name: "b",
-                    r#type: None,
                     value: Box::new(Ast::LetIn(LetIn {
                         assignments: vec![Assignment {
                             name: "c",
-                            r#type: None,
                             value: Box::new(Ast::Expression(Expression::Int(1))),
                         }],
                         expression: Box::new(Expression::Reference("c")),
@@ -441,17 +435,14 @@ mod tests {
             assignments: vec![
                 Assignment {
                     name: "Status",
-                    r#type: None,
                     value: Box::new(Ast::Expression(Expression::Product(Product {
                         assignments: vec![
                             Assignment {
                                 name: "completed",
-                                r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Boolean(true))),
                             },
                             Assignment {
                                 name: "duration",
-                                r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Reference("u32"))),
                             },
                         ],
@@ -459,22 +450,18 @@ mod tests {
                 },
                 Assignment {
                     name: "Chore",
-                    r#type: None,
                     value: Box::new(Ast::Expression(Expression::Sum(Sum {
                         assignments: vec![
                             Assignment {
                                 name: "title",
-                                r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Reference("String"))),
                             },
                             Assignment {
                                 name: "description",
-                                r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Reference("String"))),
                             },
                             Assignment {
                                 name: "status",
-                                r#type: None,
                                 value: Box::new(Ast::Expression(Expression::Reference("Status"))),
                             },
                         ],
@@ -487,25 +474,21 @@ mod tests {
                     assignments: vec![
                         Assignment {
                             name: "title",
-                            r#type: None,
                             value: Box::new(Ast::Expression(Expression::String("Vacuum"))),
                         },
                         Assignment {
                             name: "description",
-                            r#type: None,
                             value: Box::new(Ast::Expression(Expression::String(
                                 "Get the machine do the sucky in every room",
                             ))),
                         },
                         Assignment {
                             name: "status",
-                            r#type: None,
                             value: Box::new(Ast::Expression(Expression::Call(Call {
                                 function: Box::new(Expression::Reference("Status")),
                                 argument: Box::new(Expression::Map(Map {
                                     assignments: vec![Assignment {
                                         name: "completed",
-                                        r#type: None,
                                         value: Box::new(Ast::Expression(Expression::Boolean(true))),
                                     }],
                                 })),

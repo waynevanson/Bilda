@@ -34,20 +34,10 @@ pub enum Token<'input> {
     // Keywords
     #[token("let")]
     Let,
-    #[token("do")]
-    Do,
-    #[token("on")]
-    On,
     #[token("in")]
     In,
-    #[token("rec")]
-    Rec,
 
     // Brackets
-    #[token("<")]
-    AngleBracketLeft,
-    #[token(">")]
-    AngleBracketRight,
     #[token("(")]
     RoundBracketLeft,
     #[token(")")]
@@ -56,10 +46,6 @@ pub enum Token<'input> {
     CurlyBracketLeft,
     #[token("}")]
     CurlyBracketRight,
-    #[token("[")]
-    SquareBracketLeft,
-    #[token("]")]
-    SquareBracketRight,
 
     // Primitives
     #[token("True")]
@@ -72,8 +58,6 @@ pub enum Token<'input> {
     String,
 
     // Symbols
-    #[token(".")]
-    DotSingle,
     #[token(":")]
     Colon,
     #[token("=>")]
@@ -88,23 +72,11 @@ pub enum Token<'input> {
     ForwardSlash,
     #[token("*")]
     Asterisk,
-    #[token(r#"\*"#)]
-    Star,
     #[regex(r#""[^"]*""#, |lexer| {
         let slice = lexer.slice();
         &slice[1..slice.len() - 1]
     })]
     StringLiteral(&'input str),
-    #[token("&")]
-    Ampersand,
-    #[token("|")]
-    Pipe,
-
-    #[token("!")]
-    Exclamation,
-
-    #[token("_")]
-    Underscore,
 
     // Identifiers
     #[regex("[a-zA-Z][a-zA-Z0-9_]*")]
@@ -115,11 +87,4 @@ pub enum Token<'input> {
 
     #[regex(r#"[\+\-]?[0-9]+(\.[0-9]+)"#, |lexer| f64::from_str(lexer.slice()))]
     Float(f64),
-
-    #[regex(r#"(([\./])+([a-zA-Z0-9_.\(\)])+)+"#)]
-    FilePath(&'input str),
-
-    // todo: assert valid glob expression, this just gets between single quotes
-    #[regex(r#"'[^\f\n\r\t\v]+'"#)]
-    GlobPath(&'input str),
 }

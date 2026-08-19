@@ -8,7 +8,9 @@ use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
 
-use crate::ast::{Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum};
+use crate::ast::{
+    Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+};
 use crate::runtime::{
     RawValue, bilda_alloc_map, bilda_apply, bilda_decref, bilda_incref, bilda_make_bool,
     bilda_make_closure, bilda_make_float, bilda_make_int, bilda_make_string, bilda_map_rename,
@@ -83,16 +85,36 @@ impl RuntimeHelpers {
             ("bilda_make_int", &[types.int], &[types.pointer]),
             ("bilda_make_bool", &[types.bool], &[types.pointer]),
             ("bilda_make_float", &[types::F64], &[types.pointer]),
-            ("bilda_make_string", &[types.pointer, types.int], &[types.pointer]),
-            ("bilda_alloc_map", &[types.pointer, types.int], &[types.pointer]),
-            ("bilda_map_rename", &[types.pointer, types.pointer, types.int], &[]),
+            (
+                "bilda_make_string",
+                &[types.pointer, types.int],
+                &[types.pointer],
+            ),
+            (
+                "bilda_alloc_map",
+                &[types.pointer, types.int],
+                &[types.pointer],
+            ),
+            (
+                "bilda_map_rename",
+                &[types.pointer, types.pointer, types.int],
+                &[],
+            ),
             (
                 "bilda_map_set",
                 &[types.pointer, types.pointer, types.int, types.pointer],
                 &[],
             ),
-            ("bilda_make_closure", &[types.pointer, types.pointer], &[types.pointer]),
-            ("bilda_apply", &[types.pointer, types.pointer], &[types.pointer]),
+            (
+                "bilda_make_closure",
+                &[types.pointer, types.pointer],
+                &[types.pointer],
+            ),
+            (
+                "bilda_apply",
+                &[types.pointer, types.pointer],
+                &[types.pointer],
+            ),
             ("bilda_incref", &[types.pointer], &[]),
             ("bilda_decref", &[types.pointer], &[]),
             ("bilda_print", &[types.pointer], &[]),
@@ -221,7 +243,10 @@ impl<'a> Compiler<'a> {
         ctx: &mut Context,
         builder_ctx: &mut FunctionBuilderContext,
     ) -> Result<(), CompileError> {
-        let Lambdas { expressions, func_ids } = lambdas;
+        let Lambdas {
+            expressions,
+            func_ids,
+        } = lambdas;
         self.lambda_table = LambdaTable { func_ids };
 
         for &lambda_expr in &expressions {
@@ -302,7 +327,9 @@ impl<'a> Compiler<'a> {
     ) -> Result<Compiled, CompileError> {
         let mut main_sig = self.module.make_signature();
         main_sig.returns.push(AbiParam::new(self.types.pointer));
-        let main_id = self.module.declare_function("main", Linkage::Export, &main_sig)?;
+        let main_id = self
+            .module
+            .declare_function("main", Linkage::Export, &main_sig)?;
 
         ctx.func.signature = main_sig;
         ctx.func.name = UserFuncName::user(0, main_id.as_u32());
@@ -322,8 +349,7 @@ impl<'a> Compiler<'a> {
     }
 
     fn helper_ref(&mut self, bcx: &mut FunctionBuilder, name: &'static str) -> FuncRef {
-        self.helpers
-            .declare_in_func(&mut self.module, bcx, name)
+        self.helpers.declare_in_func(&mut self.module, bcx, name)
     }
 
     fn call_helper(
@@ -419,9 +445,10 @@ impl<'a> Compiler<'a> {
             Expression::Call(call) => self.compile_call(bcx, call, env),
             Expression::Lambda(_) => {
                 let key = expr as *const Expression;
-                let func_id = self.lambda_table.get(key).ok_or_else(|| {
-                    CompileError::Unsupported("lambda not collected".to_string())
-                })?;
+                let func_id = self
+                    .lambda_table
+                    .get(key)
+                    .ok_or_else(|| CompileError::Unsupported("lambda not collected".to_string()))?;
                 let func_ref = self.module.declare_func_in_func(func_id, bcx.func);
                 let func_addr = bcx.ins().func_addr(self.types.pointer, func_ref);
                 let null_env = bcx.ins().iconst(self.types.pointer, 0);
@@ -495,9 +522,9 @@ impl<'a> Compiler<'a> {
         let left = self.compile_math_target(bcx, &math.left, env)?;
         let right = self.compile_math_target(bcx, &math.right, env)?;
 
-        let left_val =
-            bcx.ins()
-                .load(self.types.int, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
+        let left_val = bcx
+            .ins()
+            .load(self.types.int, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
         let right_val =
             bcx.ins()
                 .load(self.types.int, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);

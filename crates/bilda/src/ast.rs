@@ -77,7 +77,6 @@ pub enum Expression<'input> {
 #[derive(Debug, PartialEq)]
 pub struct Assignment<'input> {
     pub name: &'input str,
-    pub r#type: Option<()>,
     pub value: Box<Ast<'input>>,
 }
 
