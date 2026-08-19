@@ -1,209 +1,35 @@
-use std::collections::HashMap;
 use std::mem;
 
 use cranelift::codegen::Context;
-use cranelift::codegen::ir::condcodes::IntCC;
 use cranelift::codegen::ir::{FuncRef, Function, UserFuncName};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
-use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
+use cranelift_module::{Linkage, Module, default_libcall_names};
 
 use crate::ast::{
     Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
 };
-use crate::runtime::{
-    RawValue, bilda_alloc_map, bilda_apply, bilda_decref, bilda_incref, bilda_make_bool,
-    bilda_make_closure, bilda_make_float, bilda_make_int, bilda_make_string, bilda_map_rename,
-    bilda_map_set, bilda_print,
-};
+use crate::jit::collect::value_is_function;
+use crate::jit::compiled::Compiled;
+use crate::jit::env::Env;
+use crate::jit::error::CompileError;
+use crate::jit::helpers::RuntimeHelpers;
+use crate::jit::lambdas::{LambdaTable, Lambdas};
+use crate::jit::symbols::register_runtime_symbols;
+use crate::jit::types::Types;
+use crate::runtime::RawValue;
 
-/// Byte offset of `RawValue::payload` in a `Value` struct.
 const VALUE_PAYLOAD_OFFSET: i32 = mem::offset_of!(RawValue, payload) as i32;
 
-#[derive(Debug)]
-pub enum CompileError {
-    UnknownReference(String),
-    Unsupported(String),
-    Module(String),
-}
-
-impl From<cranelift_module::ModuleError> for CompileError {
-    fn from(err: cranelift_module::ModuleError) -> Self {
-        CompileError::Module(err.to_string())
-    }
-}
-
-pub struct Compiled {
-    #[allow(dead_code)]
-    module: JITModule,
-    main: extern "C" fn() -> *mut RawValue,
-}
-
-impl Compiled {
-    pub fn run(&self) -> *mut RawValue {
-        (self.main)()
-    }
-}
-
-pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
-    let mut compiler = Compiler::new()?;
-    let mut ctx = compiler.module.make_context();
-    let mut builder_ctx = FunctionBuilderContext::new();
-
-    let lambdas = Lambdas::collect(ast).declare(&mut compiler.module, compiler.types.pointer)?;
-    compiler.compile_lambdas(lambdas, &mut ctx, &mut builder_ctx)?;
-    compiler.compile_main(ast, &mut ctx, &mut builder_ctx)
-}
-
-#[derive(Clone, Copy)]
-struct Types {
-    pointer: Type,
-    int: Type,
-    bool: Type,
-}
-
-impl Types {
-    fn from_module(module: &JITModule) -> Self {
-        let pointer = module.target_config().pointer_type();
-        Self {
-            pointer,
-            int: pointer,
-            bool: types::I8,
-        }
-    }
-}
-
-struct RuntimeHelpers {
-    funcs: HashMap<&'static str, FuncId>,
-}
-
-impl RuntimeHelpers {
-    fn declare(module: &mut JITModule, types: Types) -> Result<Self, CompileError> {
-        let mut funcs = HashMap::new();
-
-        let specs: [(&'static str, &[Type], &[Type]); 12] = [
-            ("bilda_make_int", &[types.int], &[types.pointer]),
-            ("bilda_make_bool", &[types.bool], &[types.pointer]),
-            ("bilda_make_float", &[types::F64], &[types.pointer]),
-            (
-                "bilda_make_string",
-                &[types.pointer, types.int],
-                &[types.pointer],
-            ),
-            (
-                "bilda_alloc_map",
-                &[types.pointer, types.int],
-                &[types.pointer],
-            ),
-            (
-                "bilda_map_rename",
-                &[types.pointer, types.pointer, types.int],
-                &[],
-            ),
-            (
-                "bilda_map_set",
-                &[types.pointer, types.pointer, types.int, types.pointer],
-                &[],
-            ),
-            (
-                "bilda_make_closure",
-                &[types.pointer, types.pointer],
-                &[types.pointer],
-            ),
-            (
-                "bilda_apply",
-                &[types.pointer, types.pointer],
-                &[types.pointer],
-            ),
-            ("bilda_incref", &[types.pointer], &[]),
-            ("bilda_decref", &[types.pointer], &[]),
-            ("bilda_print", &[types.pointer], &[]),
-        ];
-
-        for (name, params, returns) in specs {
-            let mut sig = module.make_signature();
-            for &ty in params {
-                sig.params.push(AbiParam::new(ty));
-            }
-            for &ty in returns {
-                sig.returns.push(AbiParam::new(ty));
-            }
-            let id = module.declare_function(name, Linkage::Import, &sig)?;
-            funcs.insert(name, id);
-        }
-
-        Ok(Self { funcs })
-    }
-
-    fn get(&self, name: &'static str) -> FuncId {
-        self.funcs[name]
-    }
-
-    fn declare_in_func(
-        &self,
-        module: &mut JITModule,
-        bcx: &mut FunctionBuilder,
-        name: &'static str,
-    ) -> FuncRef {
-        let id = self.get(name);
-        module.declare_func_in_func(id, bcx.func)
-    }
-}
-
-struct Lambdas<'a> {
-    expressions: Vec<*const Expression<'a>>,
-    func_ids: HashMap<*const Expression<'a>, FuncId>,
-}
-
-impl<'a> Lambdas<'a> {
-    fn collect(ast: &Ast<'a>) -> Self {
-        let mut expressions = Vec::new();
-        collect_lambdas_ast(ast, &mut expressions);
-        Self {
-            expressions,
-            func_ids: HashMap::new(),
-        }
-    }
-
-    fn declare(mut self, module: &mut JITModule, pointer_type: Type) -> Result<Self, CompileError> {
-        for (idx, &lambda_expr) in self.expressions.iter().enumerate() {
-            let mut sig = module.make_signature();
-            sig.params.push(AbiParam::new(pointer_type));
-            sig.params.push(AbiParam::new(pointer_type));
-            sig.returns.push(AbiParam::new(pointer_type));
-            let name = format!("lambda_{idx}");
-            let id = module.declare_function(&name, Linkage::Local, &sig)?;
-            self.func_ids.insert(lambda_expr, id);
-        }
-        Ok(self)
-    }
-}
-
-struct LambdaTable<'a> {
-    func_ids: HashMap<*const Expression<'a>, FuncId>,
-}
-
-impl<'a> LambdaTable<'a> {
-    fn empty() -> Self {
-        Self {
-            func_ids: HashMap::new(),
-        }
-    }
-
-    fn get(&self, expr: *const Expression<'a>) -> Option<FuncId> {
-        self.func_ids.get(&expr).copied()
-    }
-}
-
-struct Compiler<'a> {
-    module: JITModule,
-    helpers: RuntimeHelpers,
-    types: Types,
-    lambda_table: LambdaTable<'a>,
+pub struct Compiler<'a> {
+    pub module: JITModule,
+    pub helpers: RuntimeHelpers,
+    pub types: Types,
+    pub lambda_table: LambdaTable<'a>,
 }
 
 impl<'a> Compiler<'a> {
-    fn new() -> Result<Self, CompileError> {
+    pub fn new() -> Result<Self, CompileError> {
         let mut flag_builder = settings::builder();
         flag_builder.set("use_colocated_libcalls", "false").unwrap();
         flag_builder.set("is_pic", "false").unwrap();
@@ -237,7 +63,7 @@ impl<'a> Compiler<'a> {
         sig
     }
 
-    fn compile_lambdas(
+    pub fn compile_lambdas(
         &mut self,
         lambdas: Lambdas<'a>,
         ctx: &mut Context,
@@ -319,7 +145,7 @@ impl<'a> Compiler<'a> {
         Ok(())
     }
 
-    fn compile_main(
+    pub fn compile_main(
         mut self,
         ast: &'a Ast<'a>,
         ctx: &mut Context,
@@ -342,17 +168,14 @@ impl<'a> Compiler<'a> {
         let code = self.module.get_finalized_function(main_id);
         let main = unsafe { mem::transmute::<*const u8, extern "C" fn() -> *mut RawValue>(code) };
 
-        Ok(Compiled {
-            module: self.module,
-            main,
-        })
+        Ok(Compiled::new(self.module, main))
     }
 
     fn helper_ref(&mut self, bcx: &mut FunctionBuilder, name: &'static str) -> FuncRef {
         self.helpers.declare_in_func(&mut self.module, bcx, name)
     }
 
-    fn call_helper(
+    pub fn call_helper(
         &mut self,
         bcx: &mut FunctionBuilder,
         name: &'static str,
@@ -565,153 +388,10 @@ impl<'a> Compiler<'a> {
     }
 }
 
-struct Slot {
-    value: Value,
-    is_function: bool,
-}
-
-struct Env<'a> {
-    scopes: Vec<HashMap<&'a str, Slot>>,
-    bindings: Vec<Vec<Value>>,
-}
-
-impl<'a> Env<'a> {
-    fn new() -> Self {
-        Self {
-            scopes: vec![HashMap::new()],
-            bindings: vec![Vec::new()],
-        }
-    }
-
-    fn push_scope(&mut self) {
-        self.scopes.push(HashMap::new());
-        self.bindings.push(Vec::new());
-    }
-
-    fn pop_scope(&mut self) {
-        self.scopes.pop();
-        self.bindings.pop();
-    }
-
-    fn insert(&mut self, name: &'a str, value: Value, is_function: bool) {
-        self.scopes
-            .last_mut()
-            .unwrap()
-            .insert(name, Slot { value, is_function });
-        self.bindings.last_mut().unwrap().push(value);
-    }
-
-    fn get(&self, name: &str) -> Option<&Slot> {
-        self.scopes.iter().rev().find_map(|scope| scope.get(name))
-    }
-
-    fn decref_scope_except(
-        &self,
-        bcx: &mut FunctionBuilder,
-        compiler: &mut Compiler<'a>,
-        except: Value,
-    ) -> Result<(), CompileError> {
-        for &binding in self.bindings.last().unwrap() {
-            let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
-            let skip_block = bcx.create_block();
-            let drop_block = bcx.create_block();
-            let merge_block = bcx.create_block();
-            bcx.ins().brif(cond, skip_block, &[], drop_block, &[]);
-            bcx.switch_to_block(drop_block);
-            compiler.call_helper(bcx, "bilda_decref", &[binding])?;
-            bcx.ins().jump(merge_block, &[]);
-            bcx.switch_to_block(skip_block);
-            bcx.ins().jump(merge_block, &[]);
-            bcx.switch_to_block(merge_block);
-            bcx.seal_block(skip_block);
-            bcx.seal_block(drop_block);
-            bcx.seal_block(merge_block);
-        }
-        Ok(())
-    }
-}
-
-fn collect_lambdas_ast<'a>(ast: &Ast<'a>, out: &mut Vec<*const Expression<'a>>) {
-    match ast {
-        Ast::LetIn(LetIn {
-            assignments,
-            expression,
-        }) => {
-            for assignment in assignments {
-                collect_lambdas_ast(&assignment.value, out);
-            }
-            collect_lambdas_expr(expression, out);
-        }
-        Ast::Expression(expr) => collect_lambdas_expr(expr, out),
-    }
-}
-
-fn collect_lambdas_expr<'a>(expr: &Expression<'a>, out: &mut Vec<*const Expression<'a>>) {
-    match expr {
-        Expression::Lambda(lambda) => {
-            out.push(expr as *const Expression<'a>);
-            collect_lambdas_expr(&lambda.body, out);
-        }
-        Expression::Map(Map { assignments })
-        | Expression::Product(Product { assignments })
-        | Expression::Sum(Sum { assignments }) => {
-            for assignment in assignments {
-                collect_lambdas_ast(&assignment.value, out);
-            }
-        }
-        Expression::Call(Call { function, argument }) => {
-            collect_lambdas_expr(function, out);
-            collect_lambdas_expr(argument, out);
-        }
-        Expression::Math(Math { left, right, .. }) => {
-            collect_math_target(left, out);
-            collect_math_target(right, out);
-        }
-        _ => {}
-    }
-}
-
-#[allow(clippy::only_used_in_recursion)]
-fn collect_math_target<'a>(target: &MathTarget<'a>, out: &mut Vec<*const Expression<'a>>) {
-    if let MathTarget::Math(math) = target {
-        collect_math_target(&math.left, out);
-        collect_math_target(&math.right, out);
-    }
-}
-
-fn value_is_function<'a>(ast: &Ast<'a>, env: &Env<'a>) -> bool {
-    match ast {
-        Ast::Expression(expr) => expr_is_function(expr, env),
-        Ast::LetIn(LetIn { expression, .. }) => expr_is_function(expression, env),
-    }
-}
-
-fn expr_is_function<'a>(expr: &Expression<'a>, env: &Env<'a>) -> bool {
-    match expr {
-        Expression::Lambda(_) => true,
-        Expression::Reference(name) => env.get(name).map(|s| s.is_function).unwrap_or(false),
-        _ => false,
-    }
-}
-
-fn register_runtime_symbols(builder: &mut JITBuilder) {
-    builder.symbol("bilda_make_int", bilda_make_int as *const u8);
-    builder.symbol("bilda_make_bool", bilda_make_bool as *const u8);
-    builder.symbol("bilda_make_float", bilda_make_float as *const u8);
-    builder.symbol("bilda_make_string", bilda_make_string as *const u8);
-    builder.symbol("bilda_alloc_map", bilda_alloc_map as *const u8);
-    builder.symbol("bilda_map_rename", bilda_map_rename as *const u8);
-    builder.symbol("bilda_map_set", bilda_map_set as *const u8);
-    builder.symbol("bilda_make_closure", bilda_make_closure as *const u8);
-    builder.symbol("bilda_apply", bilda_apply as *const u8);
-    builder.symbol("bilda_incref", bilda_incref as *const u8);
-    builder.symbol("bilda_decref", bilda_decref as *const u8);
-    builder.symbol("bilda_print", bilda_print as *const u8);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jit::compiled::compile;
     use crate::lexer::Token;
     use crate::parser::ast;
     use crate::runtime::bilda_decref;
