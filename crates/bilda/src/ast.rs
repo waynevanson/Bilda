@@ -10,6 +10,9 @@ pub struct LetIn<'input> {
     pub expression: Box<Expression<'input>>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Boolean(pub bool);
+
 #[derive(Debug, PartialEq)]
 pub enum MathSign {
     Subtraction,
@@ -68,11 +71,11 @@ pub enum Expression<'input> {
     Lambda(Lambda<'input>),
     Int(isize),
     Float(f64),
-    Boolean(bool),
     String(&'input str),
     Reference(&'input str),
     Math(Math<'input>),
-    Not(Box<Expression<'input>>),
+    Boolean(Boolean),
+    Not(Boolean),
 }
 
 #[derive(Debug, PartialEq)]

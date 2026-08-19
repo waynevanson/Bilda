@@ -14,7 +14,8 @@ pub use crate::parser::ast::ast;
 mod tests {
     use super::*;
     use crate::ast::{
-        Assignment, Ast, Call, Expression, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+        Assignment, Ast, Boolean, Call, Expression, LetIn, Map, Math, MathSign, MathTarget,
+        Product, Sum,
     };
     use crate::lexer::Token;
     use chumsky::{Parser, input::Stream};
@@ -115,11 +116,11 @@ mod tests {
     )]
     #[case(
         "!True",
-        Ast::Expression(Expression::Not(Box::new(Expression::Boolean(true))))
+        Ast::Expression(Expression::Not(Boolean(true)))
     )]
     #[case(
         "!False",
-        Ast::Expression(Expression::Not(Box::new(Expression::Boolean(false))))
+        Ast::Expression(Expression::Not(Boolean(false)))
     )]
     #[case(
         r#"
@@ -150,7 +151,7 @@ mod tests {
                         assignments: vec![
                             Assignment {
                                 name: "completed",
-                                value: Box::new(Ast::Expression(Expression::Boolean(true))),
+                                value: Box::new(Ast::Expression(Expression::Boolean(Boolean(true)))),
                             },
                             Assignment {
                                 name: "duration",
@@ -200,7 +201,7 @@ mod tests {
                                 argument: Box::new(Expression::Map(Map {
                                     assignments: vec![Assignment {
                                         name: "completed",
-                                        value: Box::new(Ast::Expression(Expression::Boolean(true))),
+                                        value: Box::new(Ast::Expression(Expression::Boolean(Boolean(true)))),
                                     }],
                                 })),
                             }))),

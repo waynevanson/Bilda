@@ -7,7 +7,7 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Linkage, Module, default_libcall_names};
 
 use crate::ast::{
-    Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+    Ast, Boolean, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
 };
 use crate::jit::collect::value_is_function;
 use crate::jit::compiled::Compiled;
@@ -238,7 +238,7 @@ impl<'a> Compiler<'a> {
                 let c = bcx.ins().f64const(*f);
                 self.call_helper(bcx, "bilda_make_float", &[c])
             }
-            Expression::Boolean(b) => {
+            Expression::Boolean(Boolean(b)) => {
                 let c = bcx.ins().iconst(self.types.bool, if *b { 1 } else { 0 });
                 self.call_helper(bcx, "bilda_make_bool", &[c])
             }
@@ -259,7 +259,10 @@ impl<'a> Compiler<'a> {
                     None => Err(CompileError::UnknownReference((*name).to_string())),
                 }
             }
-            Expression::Not(inner) => self.compile_not(bcx, inner, env),
+            Expression::Not(Boolean(b)) => {
+                let c = bcx.ins().iconst(self.types.bool, if *b { 0 } else { 1 });
+                self.call_helper(bcx, "bilda_make_bool", &[c])
+            }
             Expression::Math(math) => self.compile_math(bcx, math, env),
             Expression::Map(Map { assignments }) => self.compile_map(bcx, assignments, None, env),
             Expression::Product(Product { assignments }) => {
@@ -335,22 +338,6 @@ impl<'a> Compiler<'a> {
                 Ok(result)
             }
         }
-    }
-
-    fn compile_not(
-        &mut self,
-        bcx: &mut FunctionBuilder,
-        inner: &'a Expression<'a>,
-        env: &mut Env<'a>,
-    ) -> Result<Value, CompileError> {
-        let value = self.compile_expr(bcx, inner, env)?;
-        let payload = bcx
-            .ins()
-            .load(self.types.int, MemFlags::new(), value, VALUE_PAYLOAD_OFFSET);
-        let inverted = bcx.ins().icmp_imm(IntCC::Equal, payload, 0);
-        let result = self.call_helper(bcx, "bilda_make_bool", &[inverted])?;
-        self.call_helper(bcx, "bilda_decref", &[value])?;
-        Ok(result)
     }
 
     fn compile_math(

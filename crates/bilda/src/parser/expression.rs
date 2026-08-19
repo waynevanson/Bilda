@@ -1,7 +1,7 @@
 use chumsky::input::ValueInput;
 use chumsky::prelude::*;
 
-use crate::ast::{Ast, Call, Expression, Lambda};
+use crate::ast::{Ast, Boolean, Call, Expression, Lambda};
 use crate::lexer::Token;
 use crate::parser::Extra;
 use crate::parser::map::{expression_map, expression_product, expression_sum};
@@ -22,8 +22,8 @@ where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
     select! {
-        Token::True => Expression::Boolean(true),
-        Token::False => Expression::Boolean(false),
+        Token::True => Expression::Boolean(Boolean(true)),
+        Token::False => Expression::Boolean(Boolean(false)),
     }
 }
 
@@ -52,16 +52,17 @@ where
         })
 }
 
-pub fn expression_not<'tok, 'src: 'tok, I, E>(
-    expr: E,
-) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+pub fn expression_not<'tok, 'src: 'tok, I>()
+-> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
 where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
-    E: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
 {
     just(Token::Bang)
-        .ignore_then(expr)
-        .map(|e| Expression::Not(Box::new(e)))
+        .ignore_then(expression_boolean())
+        .map(|e| match e {
+            Expression::Boolean(b) => Expression::Not(b),
+            _ => unreachable!(),
+        })
 }
 
 pub fn atom<'tok, 'src: 'tok, I, M>(
@@ -111,7 +112,7 @@ where
         let sum = expression_sum(ast.clone());
         let call = call(expr.clone(), map.clone());
         let lambda = expression_lambda(expr.clone());
-        let not = expression_not(expr.clone());
+        let not = expression_not();
         let choices = (call, sum, product, lambda, expression_math(), not, atom(map));
 
         choice(choices)
