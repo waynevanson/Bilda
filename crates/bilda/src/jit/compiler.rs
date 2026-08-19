@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::mem;
 
-use cranelift::codegen::ir::{FuncRef, UserFuncName};
 use cranelift::codegen::ir::condcodes::IntCC;
+use cranelift::codegen::ir::{FuncRef, UserFuncName};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
@@ -14,7 +14,8 @@ use crate::runtime::{
     bilda_map_set, bilda_print,
 };
 
-type CValue = Value;
+/// Byte offset of `RawValue::payload` in a `Value` struct.
+const VALUE_PAYLOAD_OFFSET: i32 = mem::offset_of!(RawValue, payload) as i32;
 
 #[derive(Debug)]
 pub enum CompileError {
@@ -76,10 +77,7 @@ pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
     collect_lambdas_ast(ast, &mut lambdas);
 
     for (idx, lambda_expr) in lambdas.iter().enumerate() {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.returns.push(AbiParam::new(pointer_type));
+        let sig = lambda_signature(&mut module, pointer_type);
         let name = format!("lambda_{idx}");
         let id = module.declare_function(&name, Linkage::Local, &sig)?;
         lambda_funcs.insert(*lambda_expr, id);
@@ -94,13 +92,7 @@ pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
             _ => unreachable!(),
         };
         let func_id = lambda_funcs[lambda_expr];
-
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-
-        ctx.func.signature = sig;
+        ctx.func.signature = lambda_signature(&mut module, pointer_type);
         ctx.func.name = UserFuncName::user(0, func_id.as_u32());
 
         {
@@ -179,13 +171,13 @@ pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
 }
 
 struct Slot {
-    value: CValue,
+    value: Value,
     is_function: bool,
 }
 
 struct Env<'a> {
     scopes: Vec<HashMap<&'a str, Slot>>,
-    bindings: Vec<Vec<CValue>>,
+    bindings: Vec<Vec<Value>>,
 }
 
 impl<'a> Env<'a> {
@@ -206,7 +198,7 @@ impl<'a> Env<'a> {
         self.bindings.pop();
     }
 
-    fn insert(&mut self, name: &'a str, value: CValue, is_function: bool) {
+    fn insert(&mut self, name: &'a str, value: Value, is_function: bool) {
         self.scopes
             .last_mut()
             .unwrap()
@@ -222,7 +214,7 @@ impl<'a> Env<'a> {
         &self,
         bcx: &mut FunctionBuilder,
         fcx: &mut FuncCx<'a, 'm>,
-        except: CValue,
+        except: Value,
     ) -> Result<(), CompileError> {
         for &binding in self.bindings.last().unwrap() {
             let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
@@ -263,8 +255,8 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         &mut self,
         bcx: &mut FunctionBuilder,
         name: &'static str,
-        args: &[CValue],
-    ) -> Result<CValue, CompileError> {
+        args: &[Value],
+    ) -> Result<Value, CompileError> {
         let func_ref = self.helper_ref(bcx, name);
         let call = bcx.ins().call(func_ref, args);
         let results = bcx.inst_results(call);
@@ -276,12 +268,19 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         }
     }
 
+    /// Emit pointer and length constants for a string slice.
+    fn emit_string_const(&mut self, bcx: &mut FunctionBuilder, s: &'a str) -> (Value, Value) {
+        let ptr = bcx.ins().iconst(self.pointer_type, s.as_ptr() as i64);
+        let len = bcx.ins().iconst(self.int_type, s.len() as i64);
+        (ptr, len)
+    }
+
     fn compile_ast(
         &mut self,
         bcx: &mut FunctionBuilder,
         ast: &'a Ast<'a>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         match ast {
             Ast::LetIn(LetIn {
                 assignments,
@@ -307,7 +306,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         bcx: &mut FunctionBuilder,
         expr: &'a Expression<'a>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         match expr {
             Expression::Int(n) => {
                 let c = bcx.ins().iconst(self.int_type, *n as i64);
@@ -322,14 +321,12 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                 self.call_helper(bcx, "bilda_make_bool", &[c])
             }
             Expression::String(s) => {
-                let ptr = bcx.ins().iconst(self.pointer_type, s.as_ptr() as i64);
-                let len = bcx.ins().iconst(self.int_type, s.len() as i64);
+                let (ptr, len) = self.emit_string_const(bcx, s);
                 self.call_helper(bcx, "bilda_make_string", &[ptr, len])
             }
             Expression::Reference(name) => {
                 if *name == "String" || *name == "Int" {
-                    let ptr = bcx.ins().iconst(self.pointer_type, name.as_ptr() as i64);
-                    let len = bcx.ins().iconst(self.int_type, name.len() as i64);
+                    let (ptr, len) = self.emit_string_const(bcx, name);
                     return self.call_helper(bcx, "bilda_make_string", &[ptr, len]);
                 }
                 match env.get(name) {
@@ -367,26 +364,18 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         assignments: &'a [crate::ast::Assignment<'a>],
         name: Option<&'a str>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         let (name_ptr, name_len) = match name {
-            Some(s) => (
-                bcx.ins().iconst(self.pointer_type, s.as_ptr() as i64),
-                bcx.ins().iconst(self.int_type, s.len() as i64),
-            ),
-            None => (
-                bcx.ins().iconst(self.pointer_type, 0),
-                bcx.ins().iconst(self.int_type, 0),
-            ),
+            Some(s) => self.emit_string_const(bcx, s),
+            None => {
+                let zero = bcx.ins().iconst(self.pointer_type, 0);
+                (zero, zero)
+            }
         };
         let map = self.call_helper(bcx, "bilda_alloc_map", &[name_ptr, name_len])?;
         for assignment in assignments {
             let value = self.compile_ast(bcx, &assignment.value, env)?;
-            let field_ptr = bcx
-                .ins()
-                .iconst(self.pointer_type, assignment.name.as_ptr() as i64);
-            let field_len = bcx
-                .ins()
-                .iconst(self.int_type, assignment.name.len() as i64);
+            let (field_ptr, field_len) = self.emit_string_const(bcx, assignment.name);
             self.call_helper(bcx, "bilda_map_set", &[map, field_ptr, field_len, value])?;
             self.call_helper(bcx, "bilda_decref", &[value])?;
         }
@@ -398,7 +387,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         bcx: &mut FunctionBuilder,
         call: &'a Call<'a>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         let arg = self.compile_expr(bcx, &call.argument, env)?;
 
         match &*call.function {
@@ -412,8 +401,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
                     return Ok(result);
                 }
 
-                let name_ptr = bcx.ins().iconst(self.pointer_type, name.as_ptr() as i64);
-                let name_len = bcx.ins().iconst(self.int_type, name.len() as i64);
+                let (name_ptr, name_len) = self.emit_string_const(bcx, name);
                 self.call_helper(bcx, "bilda_map_rename", &[arg, name_ptr, name_len])?;
                 Ok(arg)
             }
@@ -431,12 +419,12 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         bcx: &mut FunctionBuilder,
         math: &'a Math<'a>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         let left = self.compile_math_target(bcx, &math.left, env)?;
         let right = self.compile_math_target(bcx, &math.right, env)?;
 
-        let left_val = bcx.ins().load(self.int_type, MemFlags::new(), left, 16);
-        let right_val = bcx.ins().load(self.int_type, MemFlags::new(), right, 16);
+        let left_val = bcx.ins().load(self.int_type, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
+        let right_val = bcx.ins().load(self.int_type, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);
 
         let result = match math.sign {
             MathSign::Addition => bcx.ins().iadd(left_val, right_val),
@@ -456,7 +444,7 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         bcx: &mut FunctionBuilder,
         target: &'a MathTarget<'a>,
         env: &mut Env<'a>,
-    ) -> Result<CValue, CompileError> {
+    ) -> Result<Value, CompileError> {
         match target {
             MathTarget::Number(n) => {
                 let c = bcx.ins().iconst(self.int_type, *n as i64);
@@ -472,6 +460,14 @@ impl<'a, 'm> FuncCx<'a, 'm> {
             MathTarget::Math(math) => self.compile_math(bcx, math, env),
         }
     }
+}
+
+fn lambda_signature(module: &mut JITModule, pointer_type: Type) -> Signature {
+    let mut sig = module.make_signature();
+    sig.params.push(AbiParam::new(pointer_type));
+    sig.params.push(AbiParam::new(pointer_type));
+    sig.returns.push(AbiParam::new(pointer_type));
+    sig
 }
 
 fn collect_lambdas_ast<'a>(ast: &Ast<'a>, out: &mut Vec<*const Expression<'a>>) {
@@ -552,6 +548,25 @@ fn register_runtime_symbols(builder: &mut JITBuilder) {
     builder.symbol("bilda_print", bilda_print as *const u8);
 }
 
+fn declare_helper(
+    module: &mut JITModule,
+    helpers: &mut HashMap<&'static str, FuncId>,
+    name: &'static str,
+    params: &[Type],
+    returns: &[Type],
+) -> Result<(), CompileError> {
+    let mut sig = module.make_signature();
+    for &ty in params {
+        sig.params.push(AbiParam::new(ty));
+    }
+    for &ty in returns {
+        sig.returns.push(AbiParam::new(ty));
+    }
+    let id = module.declare_function(name, Linkage::Import, &sig)?;
+    helpers.insert(name, id);
+    Ok(())
+}
+
 fn declare_helpers(
     module: &mut JITModule,
     helpers: &mut HashMap<&'static str, FuncId>,
@@ -560,89 +575,54 @@ fn declare_helpers(
     float_type: Type,
     bool_type: Type,
 ) -> Result<(), CompileError> {
-    let mut sigs: HashMap<&'static str, Signature> = HashMap::new();
-
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(int_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_make_int", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(bool_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_make_bool", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(float_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_make_float", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(int_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_make_string", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(int_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_alloc_map", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(int_type));
-        sigs.insert("bilda_map_rename", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(int_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_map_set", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_make_closure", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_apply", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_incref", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_decref", sig);
-    }
-    {
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sigs.insert("bilda_print", sig);
-    }
-
-    for (name, sig) in sigs {
-        let id = module.declare_function(name, Linkage::Import, &sig)?;
-        helpers.insert(name, id);
-    }
+    declare_helper(module, helpers, "bilda_make_int", &[int_type], &[pointer_type])?;
+    declare_helper(module, helpers, "bilda_make_bool", &[bool_type], &[pointer_type])?;
+    declare_helper(module, helpers, "bilda_make_float", &[float_type], &[pointer_type])?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_make_string",
+        &[pointer_type, int_type],
+        &[pointer_type],
+    )?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_alloc_map",
+        &[pointer_type, int_type],
+        &[pointer_type],
+    )?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_map_rename",
+        &[pointer_type, pointer_type, int_type],
+        &[],
+    )?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_map_set",
+        &[pointer_type, pointer_type, int_type, pointer_type],
+        &[],
+    )?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_make_closure",
+        &[pointer_type, pointer_type],
+        &[pointer_type],
+    )?;
+    declare_helper(
+        module,
+        helpers,
+        "bilda_apply",
+        &[pointer_type, pointer_type],
+        &[pointer_type],
+    )?;
+    declare_helper(module, helpers, "bilda_incref", &[pointer_type], &[])?;
+    declare_helper(module, helpers, "bilda_decref", &[pointer_type], &[])?;
+    declare_helper(module, helpers, "bilda_print", &[pointer_type], &[])?;
 
     Ok(())
 }
