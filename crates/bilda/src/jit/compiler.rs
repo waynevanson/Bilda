@@ -575,54 +575,28 @@ fn declare_helpers(
     float_type: Type,
     bool_type: Type,
 ) -> Result<(), CompileError> {
-    declare_helper(module, helpers, "bilda_make_int", &[int_type], &[pointer_type])?;
-    declare_helper(module, helpers, "bilda_make_bool", &[bool_type], &[pointer_type])?;
-    declare_helper(module, helpers, "bilda_make_float", &[float_type], &[pointer_type])?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_make_string",
-        &[pointer_type, int_type],
-        &[pointer_type],
-    )?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_alloc_map",
-        &[pointer_type, int_type],
-        &[pointer_type],
-    )?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_map_rename",
-        &[pointer_type, pointer_type, int_type],
-        &[],
-    )?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_map_set",
-        &[pointer_type, pointer_type, int_type, pointer_type],
-        &[],
-    )?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_make_closure",
-        &[pointer_type, pointer_type],
-        &[pointer_type],
-    )?;
-    declare_helper(
-        module,
-        helpers,
-        "bilda_apply",
-        &[pointer_type, pointer_type],
-        &[pointer_type],
-    )?;
-    declare_helper(module, helpers, "bilda_incref", &[pointer_type], &[])?;
-    declare_helper(module, helpers, "bilda_decref", &[pointer_type], &[])?;
-    declare_helper(module, helpers, "bilda_print", &[pointer_type], &[])?;
+    let specs: [(&'static str, &[Type], &[Type]); 12] = [
+        ("bilda_make_int", &[int_type], &[pointer_type]),
+        ("bilda_make_bool", &[bool_type], &[pointer_type]),
+        ("bilda_make_float", &[float_type], &[pointer_type]),
+        ("bilda_make_string", &[pointer_type, int_type], &[pointer_type]),
+        ("bilda_alloc_map", &[pointer_type, int_type], &[pointer_type]),
+        ("bilda_map_rename", &[pointer_type, pointer_type, int_type], &[]),
+        (
+            "bilda_map_set",
+            &[pointer_type, pointer_type, int_type, pointer_type],
+            &[],
+        ),
+        ("bilda_make_closure", &[pointer_type, pointer_type], &[pointer_type]),
+        ("bilda_apply", &[pointer_type, pointer_type], &[pointer_type]),
+        ("bilda_incref", &[pointer_type], &[]),
+        ("bilda_decref", &[pointer_type], &[]),
+        ("bilda_print", &[pointer_type], &[]),
+    ];
+
+    for (name, params, returns) in specs {
+        declare_helper(module, helpers, name, params, returns)?;
+    }
 
     Ok(())
 }
