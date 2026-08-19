@@ -16,15 +16,22 @@ where
     select! { Token::StringLiteral(s) => Expression::String(s) }
 }
 
+pub fn boolean<'tok, 'src: 'tok, I>() -> impl Parser<'tok, I, Boolean, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+{
+    select! {
+        Token::True => Boolean(true),
+        Token::False => Boolean(false),
+    }
+}
+
 pub fn expression_boolean<'tok, 'src: 'tok, I>()
 -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
 where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
-    select! {
-        Token::True => Expression::Boolean(Boolean(true)),
-        Token::False => Expression::Boolean(Boolean(false)),
-    }
+    boolean().map(Expression::Boolean)
 }
 
 pub fn expression_lambda<'tok, 'src: 'tok, I, E>(
@@ -58,11 +65,8 @@ where
     I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
 {
     just(Token::Bang)
-        .ignore_then(expression_boolean())
-        .map(|e| match e {
-            Expression::Boolean(b) => Expression::Not(b),
-            _ => unreachable!(),
-        })
+        .ignore_then(boolean())
+        .map(Expression::Not)
 }
 
 pub fn atom<'tok, 'src: 'tok, I, M>(
