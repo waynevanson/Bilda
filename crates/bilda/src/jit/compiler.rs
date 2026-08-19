@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::mem;
 
+use cranelift::codegen::Context;
 use cranelift::codegen::ir::condcodes::IntCC;
 use cranelift::codegen::ir::{FuncRef, UserFuncName};
 use cranelift::prelude::*;
@@ -43,64 +44,131 @@ impl Compiled {
 }
 
 pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
-    let mut flag_builder = settings::builder();
-    flag_builder.set("use_colocated_libcalls", "false").unwrap();
-    flag_builder.set("is_pic", "false").unwrap();
-    let isa_builder = cranelift_native::builder().unwrap_or_else(|msg| {
-        panic!("host machine is not supported: {msg}");
-    });
-    let isa = isa_builder
-        .finish(settings::Flags::new(flag_builder))
-        .unwrap();
-
-    let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
-    register_runtime_symbols(&mut builder);
-
-    let mut module = JITModule::new(builder);
-    let pointer_type = module.target_config().pointer_type();
-    let int_type = pointer_type;
-    let float_type = types::F64;
-    let bool_type = types::I8;
-
-    let mut helpers = HashMap::new();
-    declare_helpers(
-        &mut module,
-        &mut helpers,
-        pointer_type,
-        int_type,
-        float_type,
-        bool_type,
-    )?;
-
-    let mut lambda_funcs: HashMap<*const Expression, FuncId> = HashMap::new();
-    let mut lambdas: Vec<*const Expression> = Vec::new();
-    collect_lambdas_ast(ast, &mut lambdas);
-
-    for (idx, lambda_expr) in lambdas.iter().enumerate() {
-        let sig = lambda_signature(&mut module, pointer_type);
-        let name = format!("lambda_{idx}");
-        let id = module.declare_function(&name, Linkage::Local, &sig)?;
-        lambda_funcs.insert(*lambda_expr, id);
-    }
-
-    let mut ctx = module.make_context();
+    let mut compiler = Compiler::new()?;
+    let mut ctx = compiler.module.make_context();
     let mut builder_ctx = FunctionBuilderContext::new();
 
-    for lambda_expr in &lambdas {
-        let lambda = match unsafe { &**lambda_expr } {
-            Expression::Lambda(l) => l,
-            _ => unreachable!(),
-        };
-        let func_id = lambda_funcs[lambda_expr];
-        ctx.func.signature = lambda_signature(&mut module, pointer_type);
-        ctx.func.name = UserFuncName::user(0, func_id.as_u32());
+    compiler.declare_lambdas(ast)?;
+    compiler.compile_lambdas(&mut ctx, &mut builder_ctx)?;
+    compiler.compile_main(ast, &mut ctx, &mut builder_ctx)
+}
 
-        {
-            let mut bcx = FunctionBuilder::new(&mut ctx.func, &mut builder_ctx);
-            let block = bcx.create_block();
-            bcx.switch_to_block(block);
-            bcx.append_block_params_for_function_params(block);
-            let arg_param = bcx.block_params(block)[0];
+struct Compiler<'a> {
+    module: JITModule,
+    helpers: HashMap<&'static str, FuncId>,
+    lambda_funcs: HashMap<*const Expression<'a>, FuncId>,
+    lambdas: Vec<*const Expression<'a>>,
+    pointer_type: Type,
+    int_type: Type,
+    bool_type: Type,
+}
+
+impl<'a> Compiler<'a> {
+    fn new() -> Result<Self, CompileError> {
+        let mut flag_builder = settings::builder();
+        flag_builder.set("use_colocated_libcalls", "false").unwrap();
+        flag_builder.set("is_pic", "false").unwrap();
+        let isa_builder = cranelift_native::builder().unwrap_or_else(|msg| {
+            panic!("host machine is not supported: {msg}");
+        });
+        let isa = isa_builder
+            .finish(settings::Flags::new(flag_builder))
+            .unwrap();
+
+        let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
+        register_runtime_symbols(&mut builder);
+
+        let module = JITModule::new(builder);
+        let pointer_type = module.target_config().pointer_type();
+        let int_type = pointer_type;
+        let bool_type = types::I8;
+
+        let mut compiler = Self {
+            module,
+            helpers: HashMap::new(),
+            lambda_funcs: HashMap::new(),
+            lambdas: Vec::new(),
+            pointer_type,
+            int_type,
+            bool_type,
+        };
+        compiler.declare_runtime_helpers()?;
+        Ok(compiler)
+    }
+
+    fn declare_runtime_helpers(&mut self) -> Result<(), CompileError> {
+        let pointer_type = self.pointer_type;
+        let int_type = self.int_type;
+        let bool_type = self.bool_type;
+
+        let specs: [(&'static str, &[Type], &[Type]); 12] = [
+            ("bilda_make_int", &[int_type], &[pointer_type]),
+            ("bilda_make_bool", &[bool_type], &[pointer_type]),
+            ("bilda_make_float", &[types::F64], &[pointer_type]),
+            ("bilda_make_string", &[pointer_type, int_type], &[pointer_type]),
+            ("bilda_alloc_map", &[pointer_type, int_type], &[pointer_type]),
+            ("bilda_map_rename", &[pointer_type, pointer_type, int_type], &[]),
+            (
+                "bilda_map_set",
+                &[pointer_type, pointer_type, int_type, pointer_type],
+                &[],
+            ),
+            ("bilda_make_closure", &[pointer_type, pointer_type], &[pointer_type]),
+            ("bilda_apply", &[pointer_type, pointer_type], &[pointer_type]),
+            ("bilda_incref", &[pointer_type], &[]),
+            ("bilda_decref", &[pointer_type], &[]),
+            ("bilda_print", &[pointer_type], &[]),
+        ];
+
+        for (name, params, returns) in specs {
+            let mut sig = self.module.make_signature();
+            for &ty in params {
+                sig.params.push(AbiParam::new(ty));
+            }
+            for &ty in returns {
+                sig.returns.push(AbiParam::new(ty));
+            }
+            let id = self.module.declare_function(name, Linkage::Import, &sig)?;
+            self.helpers.insert(name, id);
+        }
+
+        Ok(())
+    }
+
+    fn lambda_signature(&mut self) -> Signature {
+        let mut sig = self.module.make_signature();
+        sig.params.push(AbiParam::new(self.pointer_type));
+        sig.params.push(AbiParam::new(self.pointer_type));
+        sig.returns.push(AbiParam::new(self.pointer_type));
+        sig
+    }
+
+    fn declare_lambdas(&mut self, ast: &Ast<'a>) -> Result<(), CompileError> {
+        collect_lambdas_ast(ast, &mut self.lambdas);
+
+        for idx in 0..self.lambdas.len() {
+            let lambda_expr = self.lambdas[idx];
+            let sig = self.lambda_signature();
+            let name = format!("lambda_{idx}");
+            let id = self.module.declare_function(&name, Linkage::Local, &sig)?;
+            self.lambda_funcs.insert(lambda_expr, id);
+        }
+
+        Ok(())
+    }
+
+    fn compile_lambdas(
+        &mut self,
+        ctx: &mut Context,
+        builder_ctx: &mut FunctionBuilderContext,
+    ) -> Result<(), CompileError> {
+        let lambdas = self.lambdas.clone();
+
+        for &lambda_expr in &lambdas {
+            let lambda = match unsafe { &*lambda_expr } {
+                Expression::Lambda(l) => l,
+                _ => unreachable!(),
+            };
 
             if lambda.params.len() != 1 {
                 return Err(CompileError::Unsupported(
@@ -108,144 +176,75 @@ pub fn compile(ast: &Ast) -> Result<Compiled, CompileError> {
                 ));
             }
 
+            let func_id = self.lambda_funcs[&lambda_expr];
+            ctx.func.signature = self.lambda_signature();
+            ctx.func.name = UserFuncName::user(0, func_id.as_u32());
+
+            {
+                let mut bcx = FunctionBuilder::new(&mut ctx.func, builder_ctx);
+                let block = bcx.create_block();
+                bcx.switch_to_block(block);
+                bcx.append_block_params_for_function_params(block);
+                let arg_param = bcx.block_params(block)[0];
+
+                let mut env = Env::new();
+                env.push_scope();
+                env.insert(lambda.params[0], arg_param, false);
+
+                let body = self.compile_expr(&mut bcx, &lambda.body, &mut env)?;
+                env.decref_scope_except(&mut bcx, self, body)?;
+                bcx.ins().return_(&[body]);
+                bcx.seal_all_blocks();
+                bcx.finalize();
+            }
+
+            self.module.define_function(func_id, ctx)?;
+            self.module.clear_context(ctx);
+        }
+
+        Ok(())
+    }
+
+    fn compile_main(
+        mut self,
+        ast: &'a Ast<'a>,
+        ctx: &mut Context,
+        builder_ctx: &mut FunctionBuilderContext,
+    ) -> Result<Compiled, CompileError> {
+        let mut main_sig = self.module.make_signature();
+        main_sig.returns.push(AbiParam::new(self.pointer_type));
+        let main_id = self.module.declare_function("main", Linkage::Export, &main_sig)?;
+
+        ctx.func.signature = main_sig;
+        ctx.func.name = UserFuncName::user(0, main_id.as_u32());
+
+        {
+            let mut bcx = FunctionBuilder::new(&mut ctx.func, builder_ctx);
+            let block = bcx.create_block();
+            bcx.switch_to_block(block);
+            bcx.append_block_params_for_function_params(block);
+
             let mut env = Env::new();
             env.push_scope();
-            env.insert(lambda.params[0], arg_param, false);
 
-            let mut fcx = FuncCx {
-                module: &mut module,
-                helpers: &helpers,
-                lambda_funcs: &lambda_funcs,
-                pointer_type,
-                int_type,
-                bool_type,
-            };
-            let body = fcx.compile_expr(&mut bcx, &lambda.body, &mut env)?;
-            env.decref_scope_except(&mut bcx, &mut fcx, body)?;
-            bcx.ins().return_(&[body]);
+            let result = self.compile_ast(&mut bcx, ast, &mut env)?;
+            bcx.ins().return_(&[result]);
             bcx.seal_all_blocks();
             bcx.finalize();
         }
 
-        module.define_function(func_id, &mut ctx)?;
-        module.clear_context(&mut ctx);
+        self.module.define_function(main_id, ctx)?;
+        self.module.finalize_definitions()?;
+
+        let code = self.module.get_finalized_function(main_id);
+        let main = unsafe { mem::transmute::<*const u8, extern "C" fn() -> *mut RawValue>(code) };
+
+        Ok(Compiled {
+            module: self.module,
+            main,
+        })
     }
 
-    let mut main_sig = module.make_signature();
-    main_sig.returns.push(AbiParam::new(pointer_type));
-    let main_id = module.declare_function("main", Linkage::Export, &main_sig)?;
-
-    ctx.func.signature = main_sig;
-    ctx.func.name = UserFuncName::user(0, main_id.as_u32());
-
-    {
-        let mut bcx = FunctionBuilder::new(&mut ctx.func, &mut builder_ctx);
-        let block = bcx.create_block();
-        bcx.switch_to_block(block);
-        bcx.append_block_params_for_function_params(block);
-
-        let mut env = Env::new();
-        env.push_scope();
-
-        let mut fcx = FuncCx {
-            module: &mut module,
-            helpers: &helpers,
-            lambda_funcs: &lambda_funcs,
-            pointer_type,
-            int_type,
-            bool_type,
-        };
-        let result = fcx.compile_ast(&mut bcx, ast, &mut env)?;
-        bcx.ins().return_(&[result]);
-        bcx.seal_all_blocks();
-        bcx.finalize();
-    }
-
-    module.define_function(main_id, &mut ctx)?;
-    module.finalize_definitions()?;
-
-    let code = module.get_finalized_function(main_id);
-    let main = unsafe { mem::transmute::<*const u8, extern "C" fn() -> *mut RawValue>(code) };
-
-    Ok(Compiled { module, main })
-}
-
-struct Slot {
-    value: Value,
-    is_function: bool,
-}
-
-struct Env<'a> {
-    scopes: Vec<HashMap<&'a str, Slot>>,
-    bindings: Vec<Vec<Value>>,
-}
-
-impl<'a> Env<'a> {
-    fn new() -> Self {
-        Self {
-            scopes: vec![HashMap::new()],
-            bindings: vec![Vec::new()],
-        }
-    }
-
-    fn push_scope(&mut self) {
-        self.scopes.push(HashMap::new());
-        self.bindings.push(Vec::new());
-    }
-
-    fn pop_scope(&mut self) {
-        self.scopes.pop();
-        self.bindings.pop();
-    }
-
-    fn insert(&mut self, name: &'a str, value: Value, is_function: bool) {
-        self.scopes
-            .last_mut()
-            .unwrap()
-            .insert(name, Slot { value, is_function });
-        self.bindings.last_mut().unwrap().push(value);
-    }
-
-    fn get(&self, name: &str) -> Option<&Slot> {
-        self.scopes.iter().rev().find_map(|scope| scope.get(name))
-    }
-
-    fn decref_scope_except<'m>(
-        &self,
-        bcx: &mut FunctionBuilder,
-        fcx: &mut FuncCx<'a, 'm>,
-        except: Value,
-    ) -> Result<(), CompileError> {
-        for &binding in self.bindings.last().unwrap() {
-            let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
-            let skip_block = bcx.create_block();
-            let drop_block = bcx.create_block();
-            let merge_block = bcx.create_block();
-            bcx.ins().brif(cond, skip_block, &[], drop_block, &[]);
-            bcx.switch_to_block(drop_block);
-            fcx.call_helper(bcx, "bilda_decref", &[binding])?;
-            bcx.ins().jump(merge_block, &[]);
-            bcx.switch_to_block(skip_block);
-            bcx.ins().jump(merge_block, &[]);
-            bcx.switch_to_block(merge_block);
-            bcx.seal_block(skip_block);
-            bcx.seal_block(drop_block);
-            bcx.seal_block(merge_block);
-        }
-        Ok(())
-    }
-}
-
-struct FuncCx<'a, 'm> {
-    module: &'m mut JITModule,
-    helpers: &'a HashMap<&'static str, FuncId>,
-    lambda_funcs: &'a HashMap<*const Expression<'a>, FuncId>,
-    pointer_type: Type,
-    int_type: Type,
-    bool_type: Type,
-}
-
-impl<'a, 'm> FuncCx<'a, 'm> {
     fn helper_ref(&mut self, bcx: &mut FunctionBuilder, name: &'static str) -> FuncRef {
         let id = self.helpers[name];
         self.module.declare_func_in_func(id, bcx.func)
@@ -261,14 +260,12 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         let call = bcx.ins().call(func_ref, args);
         let results = bcx.inst_results(call);
         if results.is_empty() {
-            // Void helper: return a dummy value.
             Ok(bcx.ins().iconst(self.pointer_type, 0))
         } else {
             Ok(results[0])
         }
     }
 
-    /// Emit pointer and length constants for a string slice.
     fn emit_string_const(&mut self, bcx: &mut FunctionBuilder, s: &'a str) -> (Value, Value) {
         let ptr = bcx.ins().iconst(self.pointer_type, s.as_ptr() as i64);
         let len = bcx.ins().iconst(self.int_type, s.len() as i64);
@@ -346,10 +343,9 @@ impl<'a, 'm> FuncCx<'a, 'm> {
             Expression::Call(call) => self.compile_call(bcx, call, env),
             Expression::Lambda(_) => {
                 let key = expr as *const Expression;
-                let func_id =
-                    self.lambda_funcs.get(&key).copied().ok_or_else(|| {
-                        CompileError::Unsupported("lambda not collected".to_string())
-                    })?;
+                let func_id = self.lambda_funcs.get(&key).copied().ok_or_else(|| {
+                    CompileError::Unsupported("lambda not collected".to_string())
+                })?;
                 let func_ref = self.module.declare_func_in_func(func_id, bcx.func);
                 let func_addr = bcx.ins().func_addr(self.pointer_type, func_ref);
                 let null_env = bcx.ins().iconst(self.pointer_type, 0);
@@ -423,8 +419,12 @@ impl<'a, 'm> FuncCx<'a, 'm> {
         let left = self.compile_math_target(bcx, &math.left, env)?;
         let right = self.compile_math_target(bcx, &math.right, env)?;
 
-        let left_val = bcx.ins().load(self.int_type, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
-        let right_val = bcx.ins().load(self.int_type, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);
+        let left_val =
+            bcx.ins()
+                .load(self.int_type, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
+        let right_val =
+            bcx.ins()
+                .load(self.int_type, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);
 
         let result = match math.sign {
             MathSign::Addition => bcx.ins().iadd(left_val, right_val),
@@ -462,12 +462,70 @@ impl<'a, 'm> FuncCx<'a, 'm> {
     }
 }
 
-fn lambda_signature(module: &mut JITModule, pointer_type: Type) -> Signature {
-    let mut sig = module.make_signature();
-    sig.params.push(AbiParam::new(pointer_type));
-    sig.params.push(AbiParam::new(pointer_type));
-    sig.returns.push(AbiParam::new(pointer_type));
-    sig
+struct Slot {
+    value: Value,
+    is_function: bool,
+}
+
+struct Env<'a> {
+    scopes: Vec<HashMap<&'a str, Slot>>,
+    bindings: Vec<Vec<Value>>,
+}
+
+impl<'a> Env<'a> {
+    fn new() -> Self {
+        Self {
+            scopes: vec![HashMap::new()],
+            bindings: vec![Vec::new()],
+        }
+    }
+
+    fn push_scope(&mut self) {
+        self.scopes.push(HashMap::new());
+        self.bindings.push(Vec::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop();
+        self.bindings.pop();
+    }
+
+    fn insert(&mut self, name: &'a str, value: Value, is_function: bool) {
+        self.scopes
+            .last_mut()
+            .unwrap()
+            .insert(name, Slot { value, is_function });
+        self.bindings.last_mut().unwrap().push(value);
+    }
+
+    fn get(&self, name: &str) -> Option<&Slot> {
+        self.scopes.iter().rev().find_map(|scope| scope.get(name))
+    }
+
+    fn decref_scope_except(
+        &self,
+        bcx: &mut FunctionBuilder,
+        compiler: &mut Compiler<'a>,
+        except: Value,
+    ) -> Result<(), CompileError> {
+        for &binding in self.bindings.last().unwrap() {
+            let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
+            let skip_block = bcx.create_block();
+            let drop_block = bcx.create_block();
+            let merge_block = bcx.create_block();
+            bcx.ins().brif(cond, skip_block, &[], drop_block, &[]);
+            bcx.switch_to_block(drop_block);
+            compiler.call_helper(bcx, "bilda_decref", &[binding])?;
+            bcx.ins().jump(merge_block, &[]);
+            bcx.switch_to_block(skip_block);
+            bcx.ins().jump(merge_block, &[]);
+            bcx.switch_to_block(merge_block);
+            bcx.seal_block(skip_block);
+            bcx.seal_block(drop_block);
+            bcx.seal_block(merge_block);
+        }
+        Ok(())
+    }
 }
 
 fn collect_lambdas_ast<'a>(ast: &Ast<'a>, out: &mut Vec<*const Expression<'a>>) {
@@ -546,59 +604,6 @@ fn register_runtime_symbols(builder: &mut JITBuilder) {
     builder.symbol("bilda_incref", bilda_incref as *const u8);
     builder.symbol("bilda_decref", bilda_decref as *const u8);
     builder.symbol("bilda_print", bilda_print as *const u8);
-}
-
-fn declare_helper(
-    module: &mut JITModule,
-    helpers: &mut HashMap<&'static str, FuncId>,
-    name: &'static str,
-    params: &[Type],
-    returns: &[Type],
-) -> Result<(), CompileError> {
-    let mut sig = module.make_signature();
-    for &ty in params {
-        sig.params.push(AbiParam::new(ty));
-    }
-    for &ty in returns {
-        sig.returns.push(AbiParam::new(ty));
-    }
-    let id = module.declare_function(name, Linkage::Import, &sig)?;
-    helpers.insert(name, id);
-    Ok(())
-}
-
-fn declare_helpers(
-    module: &mut JITModule,
-    helpers: &mut HashMap<&'static str, FuncId>,
-    pointer_type: Type,
-    int_type: Type,
-    float_type: Type,
-    bool_type: Type,
-) -> Result<(), CompileError> {
-    let specs: [(&'static str, &[Type], &[Type]); 12] = [
-        ("bilda_make_int", &[int_type], &[pointer_type]),
-        ("bilda_make_bool", &[bool_type], &[pointer_type]),
-        ("bilda_make_float", &[float_type], &[pointer_type]),
-        ("bilda_make_string", &[pointer_type, int_type], &[pointer_type]),
-        ("bilda_alloc_map", &[pointer_type, int_type], &[pointer_type]),
-        ("bilda_map_rename", &[pointer_type, pointer_type, int_type], &[]),
-        (
-            "bilda_map_set",
-            &[pointer_type, pointer_type, int_type, pointer_type],
-            &[],
-        ),
-        ("bilda_make_closure", &[pointer_type, pointer_type], &[pointer_type]),
-        ("bilda_apply", &[pointer_type, pointer_type], &[pointer_type]),
-        ("bilda_incref", &[pointer_type], &[]),
-        ("bilda_decref", &[pointer_type], &[]),
-        ("bilda_print", &[pointer_type], &[]),
-    ];
-
-    for (name, params, returns) in specs {
-        declare_helper(module, helpers, name, params, returns)?;
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
