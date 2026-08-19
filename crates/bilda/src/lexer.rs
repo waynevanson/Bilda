@@ -72,6 +72,8 @@ pub enum Token<'input> {
     ForwardSlash,
     #[token("*")]
     Asterisk,
+    #[token("!")]
+    Bang,
     #[regex(r#""[^"]*""#, |lexer| {
         let slice = lexer.slice();
         &slice[1..slice.len() - 1]

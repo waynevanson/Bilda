@@ -259,6 +259,7 @@ impl<'a> Compiler<'a> {
                     None => Err(CompileError::UnknownReference((*name).to_string())),
                 }
             }
+            Expression::Not(inner) => self.compile_not(bcx, inner, env),
             Expression::Math(math) => self.compile_math(bcx, math, env),
             Expression::Map(Map { assignments }) => self.compile_map(bcx, assignments, None, env),
             Expression::Product(Product { assignments }) => {
@@ -334,6 +335,22 @@ impl<'a> Compiler<'a> {
                 Ok(result)
             }
         }
+    }
+
+    fn compile_not(
+        &mut self,
+        bcx: &mut FunctionBuilder,
+        inner: &'a Expression<'a>,
+        env: &mut Env<'a>,
+    ) -> Result<Value, CompileError> {
+        let value = self.compile_expr(bcx, inner, env)?;
+        let payload = bcx
+            .ins()
+            .load(self.types.int, MemFlags::new(), value, VALUE_PAYLOAD_OFFSET);
+        let inverted = bcx.ins().icmp_imm(IntCC::Equal, payload, 0);
+        let result = self.call_helper(bcx, "bilda_make_bool", &[inverted])?;
+        self.call_helper(bcx, "bilda_decref", &[value])?;
+        Ok(result)
     }
 
     fn compile_math(
@@ -481,6 +498,23 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 6);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+    }
+
+    #[test]
+    fn compile_not() {
+        let ast = parse("!True");
+        let compiled = compile(&ast).unwrap();
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_BOOL);
+        assert_eq!(v.payload, 0);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+
+        let ast = parse("!False");
+        let compiled = compile(&ast).unwrap();
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_BOOL);
+        assert_eq!(v.payload, 1);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
     }
 }

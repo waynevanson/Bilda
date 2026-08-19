@@ -52,6 +52,18 @@ where
         })
 }
 
+pub fn expression_not<'tok, 'src: 'tok, I, E>(
+    expr: E,
+) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
+where
+    I: ValueInput<'tok, Token = Token<'src>, Span = SimpleSpan> + Input<'tok>,
+    E: Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone + 'tok,
+{
+    just(Token::Bang)
+        .ignore_then(expr)
+        .map(|e| Expression::Not(Box::new(e)))
+}
+
 pub fn atom<'tok, 'src: 'tok, I, M>(
     map: M,
 ) -> impl Parser<'tok, I, Expression<'src>, Extra<'tok, 'src>> + Clone
@@ -99,7 +111,8 @@ where
         let sum = expression_sum(ast.clone());
         let call = call(expr.clone(), map.clone());
         let lambda = expression_lambda(expr.clone());
-        let choices = (call, sum, product, lambda, expression_math(), atom(map));
+        let not = expression_not(expr.clone());
+        let choices = (call, sum, product, lambda, expression_math(), not, atom(map));
 
         choice(choices)
     })

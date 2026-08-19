@@ -37,6 +37,9 @@ pub(crate) fn collect_lambdas_expr<'a>(expr: &Expression<'a>, out: &mut Vec<*con
             collect_math_target(left, out);
             collect_math_target(right, out);
         }
+        Expression::Not(inner) => {
+            collect_lambdas_expr(inner, out);
+        }
         _ => {}
     }
 }

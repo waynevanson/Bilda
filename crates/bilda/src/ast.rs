@@ -72,6 +72,7 @@ pub enum Expression<'input> {
     String(&'input str),
     Reference(&'input str),
     Math(Math<'input>),
+    Not(Box<Expression<'input>>),
 }
 
 #[derive(Debug, PartialEq)]

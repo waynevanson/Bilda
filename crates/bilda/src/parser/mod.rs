@@ -114,6 +114,14 @@ mod tests {
         })
     )]
     #[case(
+        "!True",
+        Ast::Expression(Expression::Not(Box::new(Expression::Boolean(true))))
+    )]
+    #[case(
+        "!False",
+        Ast::Expression(Expression::Not(Box::new(Expression::Boolean(false))))
+    )]
+    #[case(
         r#"
             let
               Status = + {
