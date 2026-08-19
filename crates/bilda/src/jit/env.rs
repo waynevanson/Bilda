@@ -33,12 +33,22 @@ impl<'a> Env<'a> {
         self.bindings.pop();
     }
 
-    pub fn insert(&mut self, name: &'a str, value: Value, is_function: bool) {
-        self.scopes
-            .last_mut()
-            .unwrap()
-            .insert(name, Slot { value, is_function });
-        self.bindings.last_mut().unwrap().push(value);
+    pub fn insert(
+        &mut self,
+        name: &'a str,
+        value: Value,
+        is_function: bool,
+    ) -> Result<(), CompileError> {
+        let scope = self.scopes.last_mut().ok_or_else(|| {
+            CompileError::Internal("env scope stack underflow".into())
+        })?;
+        scope.insert(name, Slot { value, is_function });
+
+        let bindings = self.bindings.last_mut().ok_or_else(|| {
+            CompileError::Internal("env binding stack underflow".into())
+        })?;
+        bindings.push(value);
+        Ok(())
     }
 
     pub fn get(&self, name: &str) -> Option<&Slot> {
@@ -51,7 +61,10 @@ impl<'a> Env<'a> {
         compiler: &mut Compiler<'a>,
         except: Value,
     ) -> Result<(), CompileError> {
-        for &binding in self.bindings.last().unwrap() {
+        let bindings = self.bindings.last().ok_or_else(|| {
+            CompileError::Internal("env binding stack underflow".into())
+        })?;
+        for &binding in bindings {
             let cond = bcx.ins().icmp(IntCC::Equal, binding, except);
             let skip_block = bcx.create_block();
             let drop_block = bcx.create_block();

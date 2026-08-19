@@ -31,14 +31,17 @@ pub struct Compiler<'a> {
 impl<'a> Compiler<'a> {
     pub fn new() -> Result<Self, CompileError> {
         let mut flag_builder = settings::builder();
-        flag_builder.set("use_colocated_libcalls", "false").unwrap();
-        flag_builder.set("is_pic", "false").unwrap();
-        let isa_builder = cranelift_native::builder().unwrap_or_else(|msg| {
-            panic!("host machine is not supported: {msg}");
-        });
+        flag_builder
+            .set("use_colocated_libcalls", "false")
+            .map_err(|e| CompileError::Settings(e.to_string()))?;
+        flag_builder
+            .set("is_pic", "false")
+            .map_err(|e| CompileError::Settings(e.to_string()))?;
+        let isa_builder = cranelift_native::builder()
+            .map_err(|msg| CompileError::Codegen(msg.to_string()))?;
         let isa = isa_builder
             .finish(settings::Flags::new(flag_builder))
-            .unwrap();
+            .map_err(|e| CompileError::Codegen(e.to_string()))?;
 
         let mut builder = JITBuilder::with_isa(isa, default_libcall_names());
         register_runtime_symbols(&mut builder);
@@ -114,7 +117,7 @@ impl<'a> Compiler<'a> {
 
         let mut env = Env::new();
         env.push_scope();
-        env.insert(lambda.params[0], arg_param, false);
+        env.insert(lambda.params[0], arg_param, false)?;
 
         let body = self.compile_expr(&mut bcx, &lambda.body, &mut env)?;
         env.decref_scope_except(&mut bcx, self, body)?;
@@ -212,7 +215,7 @@ impl<'a> Compiler<'a> {
                 for assignment in assignments {
                     let value = self.compile_ast(bcx, &assignment.value, env)?;
                     let is_function = value_is_function(&assignment.value, env);
-                    env.insert(assignment.name, value, is_function);
+                    env.insert(assignment.name, value, is_function)?;
                 }
                 let result = self.compile_expr(bcx, expression, env)?;
                 env.decref_scope_except(bcx, self, result)?;
@@ -404,57 +407,63 @@ mod tests {
     use chumsky::input::Stream;
     use logos::Logos;
 
-    fn parse(source: &str) -> crate::ast::Ast<'_> {
-        let tokens: Vec<Token<'_>> = Token::lexer(source).collect::<Result<_, _>>().unwrap();
-        ast()
+    fn parse(source: &str) -> Result<crate::ast::Ast<'_>, Box<dyn std::error::Error>> {
+        let tokens: Vec<Token<'_>> = Token::lexer(source)
+            .collect::<Result<_, _>>()
+            .map_err(|e| format!("{e:?}"))?;
+        Ok(ast()
             .parse(Stream::from_iter(tokens))
             .into_result()
-            .unwrap()
+            .map_err(|e| format!("{e:?}"))?)
     }
 
     #[test]
-    fn compile_int() {
-        let ast = parse("42");
-        let compiled = compile(&ast).unwrap();
+    fn compile_int() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse("42")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 42);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_math() {
-        let ast = parse("(1 + 2) * 3");
-        let compiled = compile(&ast).unwrap();
+    fn compile_math() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse("(1 + 2) * 3")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 9);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_let() {
-        let ast = parse("let a = 1 b = 2 in a + b");
-        let compiled = compile(&ast).unwrap();
+    fn compile_let() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse("let a = 1 b = 2 in a + b")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 3);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_string() {
-        let ast = parse(r#""hello""#);
-        let compiled = compile(&ast).unwrap();
+    fn compile_string() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(r#""hello""#)?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_STRING);
         let obj = unsafe { &*(v.payload as *const StringObj) };
         assert_eq!(obj.len, 5);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_constructor() {
+    fn compile_constructor() -> Result<(), Box<dyn std::error::Error>> {
         let ast = parse(
             r#"
             let
@@ -462,46 +471,49 @@ mod tests {
             in
               Status { completed = False }
         "#,
-        );
-        let compiled = compile(&ast).unwrap();
+        )?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_MAP);
         let obj = unsafe { &*(v.payload as *const MapObj) };
         let name = unsafe { std::ffi::CStr::from_ptr(obj.name) };
-        assert_eq!(name.to_str().unwrap(), "Status");
+        assert_eq!(name.to_str()?, "Status");
         assert_eq!(obj.len, 1);
         let entry = unsafe { &*obj.entries };
         let field_name = unsafe { std::ffi::CStr::from_ptr(entry.name) };
-        assert_eq!(field_name.to_str().unwrap(), "completed");
+        assert_eq!(field_name.to_str()?, "completed");
         assert_eq!(unsafe { (*entry.value).tag }, TAG_BOOL);
         assert_eq!(unsafe { (*entry.value).payload }, 0);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_lambda() {
-        let ast = parse("let f = (x: Int) => x + 1 in f(5)");
-        let compiled = compile(&ast).unwrap();
+    fn compile_lambda() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse("let f = (x: Int) => x + 1 in f(5)")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 6);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 
     #[test]
-    fn compile_not() {
-        let ast = parse("!True");
-        let compiled = compile(&ast).unwrap();
+    fn compile_not() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse("!True")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_BOOL);
         assert_eq!(v.payload, 0);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
 
-        let ast = parse("!False");
-        let compiled = compile(&ast).unwrap();
+        let ast = parse("!False")?;
+        let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_BOOL);
         assert_eq!(v.payload, 1);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
     }
 }
