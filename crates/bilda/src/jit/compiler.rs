@@ -3,12 +3,12 @@ use std::mem;
 
 use cranelift::codegen::Context;
 use cranelift::codegen::ir::condcodes::IntCC;
-use cranelift::codegen::ir::{FuncRef, UserFuncName};
+use cranelift::codegen::ir::{FuncRef, Function, UserFuncName};
 use cranelift::prelude::*;
 use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{FuncId, Linkage, Module, default_libcall_names};
 
-use crate::ast::{Ast, Call, Expression, LetIn, Map, Math, MathSign, MathTarget, Product, Sum};
+use crate::ast::{Ast, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum};
 use crate::runtime::{
     RawValue, bilda_alloc_map, bilda_apply, bilda_decref, bilda_incref, bilda_make_bool,
     bilda_make_closure, bilda_make_float, bilda_make_int, bilda_make_string, bilda_map_rename,
@@ -240,28 +240,57 @@ impl<'a> Compiler<'a> {
             ctx.func.signature = self.lambda_signature();
             ctx.func.name = UserFuncName::user(0, func_id.as_u32());
 
-            {
-                let mut bcx = FunctionBuilder::new(&mut ctx.func, builder_ctx);
-                let block = bcx.create_block();
-                bcx.switch_to_block(block);
-                bcx.append_block_params_for_function_params(block);
-                let arg_param = bcx.block_params(block)[0];
-
-                let mut env = Env::new();
-                env.push_scope();
-                env.insert(lambda.params[0], arg_param, false);
-
-                let body = self.compile_expr(&mut bcx, &lambda.body, &mut env)?;
-                env.decref_scope_except(&mut bcx, self, body)?;
-                bcx.ins().return_(&[body]);
-                bcx.seal_all_blocks();
-                bcx.finalize();
-            }
+            self.compile_lambda_body(&mut ctx.func, builder_ctx, lambda)?;
 
             self.module.define_function(func_id, ctx)?;
             self.module.clear_context(ctx);
         }
 
+        Ok(())
+    }
+
+    fn compile_lambda_body(
+        &mut self,
+        func: &mut Function,
+        builder_ctx: &mut FunctionBuilderContext,
+        lambda: &'a Lambda<'a>,
+    ) -> Result<(), CompileError> {
+        let mut bcx = FunctionBuilder::new(func, builder_ctx);
+        let block = bcx.create_block();
+        bcx.switch_to_block(block);
+        bcx.append_block_params_for_function_params(block);
+        let arg_param = bcx.block_params(block)[0];
+
+        let mut env = Env::new();
+        env.push_scope();
+        env.insert(lambda.params[0], arg_param, false);
+
+        let body = self.compile_expr(&mut bcx, &lambda.body, &mut env)?;
+        env.decref_scope_except(&mut bcx, self, body)?;
+        bcx.ins().return_(&[body]);
+        bcx.seal_all_blocks();
+        bcx.finalize();
+        Ok(())
+    }
+
+    fn compile_main_body(
+        &mut self,
+        func: &mut Function,
+        builder_ctx: &mut FunctionBuilderContext,
+        ast: &'a Ast<'a>,
+    ) -> Result<(), CompileError> {
+        let mut bcx = FunctionBuilder::new(func, builder_ctx);
+        let block = bcx.create_block();
+        bcx.switch_to_block(block);
+        bcx.append_block_params_for_function_params(block);
+
+        let mut env = Env::new();
+        env.push_scope();
+
+        let result = self.compile_ast(&mut bcx, ast, &mut env)?;
+        bcx.ins().return_(&[result]);
+        bcx.seal_all_blocks();
+        bcx.finalize();
         Ok(())
     }
 
@@ -278,20 +307,7 @@ impl<'a> Compiler<'a> {
         ctx.func.signature = main_sig;
         ctx.func.name = UserFuncName::user(0, main_id.as_u32());
 
-        {
-            let mut bcx = FunctionBuilder::new(&mut ctx.func, builder_ctx);
-            let block = bcx.create_block();
-            bcx.switch_to_block(block);
-            bcx.append_block_params_for_function_params(block);
-
-            let mut env = Env::new();
-            env.push_scope();
-
-            let result = self.compile_ast(&mut bcx, ast, &mut env)?;
-            bcx.ins().return_(&[result]);
-            bcx.seal_all_blocks();
-            bcx.finalize();
-        }
+        self.compile_main_body(&mut ctx.func, builder_ctx, ast)?;
 
         self.module.define_function(main_id, ctx)?;
         self.module.finalize_definitions()?;
