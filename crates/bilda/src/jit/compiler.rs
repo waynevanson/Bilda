@@ -105,16 +105,36 @@ impl<'a> Compiler<'a> {
             ("bilda_make_int", &[int_type], &[pointer_type]),
             ("bilda_make_bool", &[bool_type], &[pointer_type]),
             ("bilda_make_float", &[types::F64], &[pointer_type]),
-            ("bilda_make_string", &[pointer_type, int_type], &[pointer_type]),
-            ("bilda_alloc_map", &[pointer_type, int_type], &[pointer_type]),
-            ("bilda_map_rename", &[pointer_type, pointer_type, int_type], &[]),
+            (
+                "bilda_make_string",
+                &[pointer_type, int_type],
+                &[pointer_type],
+            ),
+            (
+                "bilda_alloc_map",
+                &[pointer_type, int_type],
+                &[pointer_type],
+            ),
+            (
+                "bilda_map_rename",
+                &[pointer_type, pointer_type, int_type],
+                &[],
+            ),
             (
                 "bilda_map_set",
                 &[pointer_type, pointer_type, int_type, pointer_type],
                 &[],
             ),
-            ("bilda_make_closure", &[pointer_type, pointer_type], &[pointer_type]),
-            ("bilda_apply", &[pointer_type, pointer_type], &[pointer_type]),
+            (
+                "bilda_make_closure",
+                &[pointer_type, pointer_type],
+                &[pointer_type],
+            ),
+            (
+                "bilda_apply",
+                &[pointer_type, pointer_type],
+                &[pointer_type],
+            ),
             ("bilda_incref", &[pointer_type], &[]),
             ("bilda_decref", &[pointer_type], &[]),
             ("bilda_print", &[pointer_type], &[]),
@@ -213,7 +233,9 @@ impl<'a> Compiler<'a> {
     ) -> Result<Compiled, CompileError> {
         let mut main_sig = self.module.make_signature();
         main_sig.returns.push(AbiParam::new(self.pointer_type));
-        let main_id = self.module.declare_function("main", Linkage::Export, &main_sig)?;
+        let main_id = self
+            .module
+            .declare_function("main", Linkage::Export, &main_sig)?;
 
         ctx.func.signature = main_sig;
         ctx.func.name = UserFuncName::user(0, main_id.as_u32());
@@ -343,9 +365,10 @@ impl<'a> Compiler<'a> {
             Expression::Call(call) => self.compile_call(bcx, call, env),
             Expression::Lambda(_) => {
                 let key = expr as *const Expression;
-                let func_id = self.lambda_funcs.get(&key).copied().ok_or_else(|| {
-                    CompileError::Unsupported("lambda not collected".to_string())
-                })?;
+                let func_id =
+                    self.lambda_funcs.get(&key).copied().ok_or_else(|| {
+                        CompileError::Unsupported("lambda not collected".to_string())
+                    })?;
                 let func_ref = self.module.declare_func_in_func(func_id, bcx.func);
                 let func_addr = bcx.ins().func_addr(self.pointer_type, func_ref);
                 let null_env = bcx.ins().iconst(self.pointer_type, 0);
@@ -419,12 +442,12 @@ impl<'a> Compiler<'a> {
         let left = self.compile_math_target(bcx, &math.left, env)?;
         let right = self.compile_math_target(bcx, &math.right, env)?;
 
-        let left_val =
-            bcx.ins()
-                .load(self.int_type, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
-        let right_val =
-            bcx.ins()
-                .load(self.int_type, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);
+        let left_val = bcx
+            .ins()
+            .load(self.int_type, MemFlags::new(), left, VALUE_PAYLOAD_OFFSET);
+        let right_val = bcx
+            .ins()
+            .load(self.int_type, MemFlags::new(), right, VALUE_PAYLOAD_OFFSET);
 
         let result = match math.sign {
             MathSign::Addition => bcx.ins().iadd(left_val, right_val),
