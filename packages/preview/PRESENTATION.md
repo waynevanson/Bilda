@@ -14,7 +14,7 @@ The language for languages
 
 ---
 
-# Demonstration?
+# Excerpt
 
 ```
 let
@@ -22,9 +22,10 @@ let
   b = True
   d = "Hello, World!"
   e = [a b c d e]
-  f = list::map
+  # implicitly requires Apply!
+  f = List::map
     on
-      z = [5, 3, 2, 1]
+      z = [5 3 2 1]
     do
       x = z + 4
       y = x * (z + 2)
@@ -34,25 +35,42 @@ in
   f
 ```
 
----
+```
 
-## Why Rust?
+# still experimenting
 
-What we need
+zx = [5 3 2 1]
+zx.map(z =>
+  let
+    x = z + 4
+    y = x * z + 2
+  in
+    x * y * z
+)
 
-1. Performance
-2. Strictness
-3. Structures
-4. Ecosystem
 
-<!--
+# What about lifting into another thing? can we avoid apply?
 
-Performance - Quick to run
-Strict - Ensure program does what we want and nothing more
-Structures - What we need and nothing more
-Ecosystem - Lexers, Parsers, Compilers, Runtime
+<!-- does it really make sense? -->
+[1, 2, 3, 4]
+.filter(a => a == 2)
+.filter(b => b == 3)
 
--->
+# how about concurrency for some Typeclass types?
+
+# is this implicit apply?
+let List::filter
+  on
+    a = [1, 2, 3, 4]
+  do
+    b = a == 2
+    c = b == 3
+  in
+    # requires of
+    (a, b, c)
+
+
+```
 
 ---
 
@@ -65,15 +83,22 @@ Ecosystem - Lexers, Parsers, Compilers, Runtime
 
 ---
 
-## Breakdown of implementing a language
+## Why Rust?
 
-<!--
+1. Performance - Codebases could 1M LOC
+2. Strictness - Do what we know
+3. Structures - Sum, Product and Newtypes
+4. Ecosystem - Reusing the wheel
 
-How to break it down, step by step?
+---
 
--->
+## Signtaure
 
-Signature is `Text -> Effect`.
+```
+Text -> Effect
+```
+
+Our code needs to do something
 
 ---
 
