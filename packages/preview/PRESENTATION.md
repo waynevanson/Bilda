@@ -22,54 +22,16 @@ let
   b = True
   d = "Hello, World!"
   e = [a b c d e]
-  # implicitly requires Apply!
-  f = List::map
-    on
-      z = [5 3 2 1]
-    do
-      x = z + 4
-      y = x * (z + 2)
-    in
-      x * y * z
+  List = + {
+
+  }
+  # Kleisli to lift so I don't repeat myself?
+on
+  z = [5 3 2 1]
+do List::of
+  y = z + 2
 in
-  f
-```
-
-```
-
-# still experimenting
-
-zx = [5 3 2 1]
-zx.map(z =>
-  let
-    x = z + 4
-    y = x * z + 2
-  in
-    x * y * z
-)
-
-
-# What about lifting into another thing? can we avoid apply?
-
-<!-- does it really make sense? -->
-[1, 2, 3, 4]
-.filter(a => a == 2)
-.filter(b => b == 3)
-
-# how about concurrency for some Typeclass types?
-
-# is this implicit apply?
-let List::filter
-  on
-    a = [1, 2, 3, 4]
-  do
-    b = a == 2
-    c = b == 3
-  in
-    # requires of
-    (a, b, c)
-
-
+  [y * z]
 ```
 
 ---
@@ -132,9 +94,9 @@ Execution ═══════│
 
 ### Responsibilities
 
-1. Groups characters.
-2. Categorizes groups.
-3. List.
+1. Groups characters
+2. Categorizes groups
+3. List
 
 ---
 
@@ -168,11 +130,11 @@ fn main() {
 
 Macro based rust crate that constructs a Lexer.
 
-1. Quick
-2. Compile time distinct patterns.
-3. Skip patterns.
-4. Inline transforms - Coerce `&str` to value.
-5. Lexer composition - String interpolation.
+1. Quick & Simple
+2. Compile time distinct patterns
+3. Skip patterns - spaces, comments
+4. Inline transforms - Coerce `&str` to value
+5. Lexer composition - String interpolation
 
 ---
 
@@ -180,7 +142,7 @@ Macro based rust crate that constructs a Lexer.
 
 ---
 
-## Why a parser?
+## Parser
 
 ### Signature
 
@@ -188,13 +150,13 @@ Macro based rust crate that constructs a Lexer.
 
 ### Responsibilities
 
-1. Group tokens.
+1. Group tokens
 2. Categorizes groups
-3. Tree.
+3. Tree
 
 ---
 
-### How to create a parser
+## Parser - Example
 
 ```rust
 use token::Token;
@@ -221,11 +183,9 @@ fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
 }
 ```
 
-<!--
-Remember, not using let is invalid.
--->
-
 ---
+
+## Parser - Example
 
 ```rust
 fn main() {
@@ -244,7 +204,7 @@ fn main() {
 
 ### Why a parser combinator library?
 
-1. Decompose problem into pieces
+1. Allow parser to grammer representation
 2. Composition - Join many together
 3. Complex error handling managed
 
@@ -327,6 +287,8 @@ fn main() {
 
 ---
 
+## Compiler - Side Effects
+
 ## Signature
 
 ```
@@ -336,11 +298,9 @@ fn main() {
 
 ## Responsibilities
 
-1. Language checks
-   1. Type checking
-   2. Borrow checking
-   3. ???
-2. Performance optimizations.
+1.  Type checking
+2.  Borrow checking
+3.  ???
 
 ---
 
