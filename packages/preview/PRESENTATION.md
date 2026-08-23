@@ -21,15 +21,16 @@ let
   a = 2
   b = True
   d = "Hello, World!"
-  e = [a b c d e]
-  List = + {
-
+  e = [a b  d e]
+  # maybe there's a trait for `+` that allows us to manage assignments?
+  Validation = + {
+    result = Result,
+    value = String
   }
   # Kleisli to lift so I don't repeat myself?
-on
   z = [5 3 2 1]
-do List::of
-  y = z + 2
+  y = List::of {
+  }
 in
   [y * z]
 ```
@@ -142,13 +143,13 @@ Macro based rust crate that constructs a Lexer.
 
 ---
 
-## Parser
+# Parser
 
-### Signature
+## Signature
 
 `Tokens -> AbstractSyntaxTree`
 
-### Responsibilities
+## Responsibilities
 
 1. Group tokens
 2. Categorizes groups
@@ -156,7 +157,7 @@ Macro based rust crate that constructs a Lexer.
 
 ---
 
-## Parser - Example
+# Parser - Example
 
 ```rust
 use token::Token;
@@ -185,7 +186,7 @@ fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
 
 ---
 
-## Parser - Example
+# Parser - Example
 
 ```rust
 fn main() {
@@ -202,7 +203,7 @@ fn main() {
 
 ---
 
-### Why a parser combinator library?
+# Parser - Combinators
 
 1. Allow parser to grammer representation
 2. Composition - Join many together
@@ -210,15 +211,15 @@ fn main() {
 
 ---
 
-### Why `chumsky`?
+# Why `chumsky`?
 
-(on Codeberg, not GitHub) is a trait/function based crate that constructs composable parsers with error handling,
+Trait/function based crate that constructs composable parsers with error handling (Codeberg, not GitHub).
 
 1. Performant.
 2. Recursive descent.
 3. Pratt (precedence).
 4. Composition.
-5. `check` and `run` mode.
+5. Optimised `check` and `run` mode.
 
 ---
 
@@ -255,31 +256,43 @@ fn main() {
 
 ## Parsers - Combinators
 
-1. `parser_a.then(parser_b) -> (A, B)`
-   1. Parse both, keep both.
-1. `parser_a.then_ignore(parser_b) -> A`
-   1. Parse both, keep first parser value.
-1. `parser_a.ignore_then(parser_b) -> B`
-   1. Parse both, keep second value.
+```rust
+// Parse both, keep both.
+parser_a.then(parser_b) -> (A, B)
+
+// Parse both, keep first parser value.
+parser_a.then_ignore(parser_b) -> A
+
+// Parse both, keep second value.
+parser_a.ignore_then(parser_b) -> B
+```
 
 ---
 
 ## Parsers - Combinators (cont.1)
 
-1. `parser.delimited_by(parser_a, parser_b) -> T`
-   1. `parser_a.ignore_then(parser).then_ignore(parser)`
-   2. Returns value from parser.
-1. `parser.repeated().at_least(1).at_most(5).collect() -> Vec<T>`
-   1. Iterator-like for mulitple of same value.
+```rust
+// Returns value from the middle parser
+parser_a.ignore_then(parser_b).then_ignore(parser_c) -> T
+
+// Neat - Brackets
+parser_b.delimited_by(parser_a, parser_c) -> T
+
+// Iterator constructor, builder & collection
+parser.repeated().at_least(1).at_most(5).collect() -> Vec<T>
+```
 
 ---
 
 ## Parsers - Recursive
 
-1. `recursive(|parser_a| { parser_a })`
-   1. Create a parser that relies on itself.
-2. `parser.pratt((parser_a, parser_b))`
-   1. Parse precedence for infix stuff.
+```rust
+// Parser in itself - (x  + (y - z))
+recursive(|parser_a| { parser_a })
+
+// Precedence - (x - y + z)
+parser.pratt((parser_a, parser_b))
+```
 
 ---
 
@@ -287,11 +300,11 @@ fn main() {
 
 ---
 
-## Compiler - Side Effects
+# Compiler - Validation
 
 ## Signature
 
-```
+```js
 > Ast -> ()
   Ast -> IR
 ```
