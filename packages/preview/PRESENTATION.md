@@ -39,19 +39,19 @@ in
 
 ## Inspiration
 
-1. Cormack's presentation — Build system tool `buck2`
-2. How to make languages better?
-3. Monads
-4. Rust project way to advanced
+1) Cormack's presentation — Build system tool `buck2`
+2) How to make languages better?
+3) Monads
+4) Rust project way to advanced
 
 ---
 
 ## Why Rust?
 
-1. Performance - Codebases could 1M LOC
-2. Strictness - Do what we know
-3. Structures - Sum, Product and Newtypes
-4. Ecosystem - Reusing the wheel
+1) Performance - Codebases could 1M LOC
+2) Strictness - Do what we know
+3) Structures - Sum, Product and Newtypes
+4) Ecosystem - Reusing the wheel
 
 ---
 
@@ -87,21 +87,21 @@ Execution ═══════│
 
 ---
 
-## Why a lexer?
+# Lexer
 
-### Signature
+## Signature
 
 `Text -> Tokens`
 
-### Responsibilities
+## Responsibilities
 
-1. Groups characters
-2. Categorizes groups
-3. List
+1) Groups characters
+2) Categorizes groups
+3) List
 
 ---
 
-## How to implement lexer
+# Lexer - Example
 
 ```rust
 use logos::Logos;
@@ -129,13 +129,11 @@ fn main() {
 
 ## Why logos?
 
-Macro based rust crate that constructs a Lexer.
-
-1. Quick & Simple
-2. Compile time distinct patterns
-3. Skip patterns - spaces, comments
-4. Inline transforms - Coerce `&str` to value
-5. Lexer composition - String interpolation
+1) Quick & Simple
+2) Compile time distinct patterns
+3) Skip patterns - spaces, comments
+4) Inline transforms - Coerce `&str` to value
+5) Lexer composition - String interpolation
 
 ---
 
@@ -151,9 +149,27 @@ Macro based rust crate that constructs a Lexer.
 
 ## Responsibilities
 
-1. Group tokens
-2. Categorizes groups
-3. Tree
+1) Group tokens
+2) Categorizes groups
+3) Tree
+
+---
+
+## Signature of parser
+
+```rust
+<Token, Context, Value, Error>
+(tokens: Stream<Token>, context: &mut Context) ->
+(Option<Value>, Vec<Error>)
+```
+
+## Design
+
+1) Tokens and context.
+2) Token cursor moves along.
+3) Mutate context.
+4) Calculates from tokens taken.
+5) Adds errors.
 
 ---
 
@@ -186,7 +202,7 @@ fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
 
 ---
 
-# Parser - Example
+# Parser - Example (contd.)
 
 ```rust
 fn main() {
@@ -205,49 +221,41 @@ fn main() {
 
 # Parser - Combinators
 
-1. Allow parser to grammer representation
-2. Composition - Join many together
-3. Complex error handling managed
+1) Parser as grammar rule
+2) Composition - Join many together
+3) Complex error handling managed
 
 ---
 
 # Why `chumsky`?
 
-Trait/function based crate that constructs composable parsers with error handling (Codeberg, not GitHub).
-
-1. Performant.
-2. Recursive descent.
-3. Pratt (precedence).
-4. Composition.
-5. Optimised `check` and `run` mode.
-
----
-
-## Signature of parser
-
-```rust
-<Token, Context, Value, Error>
-(tokens: Stream<Token>, context: &mut Context) ->
-(Option<Value>, Vec<Error>)
-```
-
-## Design
-
-1. Tokens and context.
-2. Token cursor moves along.
-3. Mutate context.
-4. Calculates from tokens taken.
-5. Adds errors.
+1) Performant
+2) Recursive descent - Tail recursive
+3) Pratt - Precedence
+4) Composition
+5) Optimised `check` and `run` mode
 
 ---
 
 ## Parsers - Constructors
 
-1. Default `empty()`
+```rust
+// increments 0 tokens, Ok
+empty() -> ()
+
+just(Token) -> Token
+
+// `just` with
+select! {
+    Token => "Something"
+}
+```
+
+1) Default `empty()`
    1. increments 0 token/s.
    2. returns `()`.
    3. success.
-1. Match 1 `just(i)`
+1) Match 1 `just(i)`
    1. increments 1 token/s.
    2. returns `i`.
    3. success.
@@ -300,44 +308,20 @@ parser.pratt((parser_a, parser_b))
 
 ---
 
-# Compiler - Validation
+# Compiler
 
 ## Signature
 
 ```js
-> Ast -> ()
   Ast -> IR
 ```
 
 ## Responsibilities
 
-1.  Type checking
-2.  Borrow checking
-3.  ???
-
----
-
-## Why Compile?
-
-1. 1 per IR instead of 1 per target `(n + n, n * n)`
-2. Developer experience.
-
----
-
-## Signature
-
-```
-  Ast -> ()
-> Ast -> IR
-```
-
-## Intermediate Representation (IR)
-
-1. Code
-2. Indirection
-3. Compile to 1 code instead of many codes (architecture targets)
-4. Processable by LLVM or cranelift (different formats)
-5. Make the implicit explicit (types, drops, jumps, arithmetic)
+1) Transform between languages
+2) Type checking
+3) Borrow checking
+4) ???
 
 ---
 
@@ -351,20 +335,21 @@ parser.pratt((parser_a, parser_b))
 IR -> MachineCode
 ```
 
+## Intermediate Representation (IR)
+
+1) Code
+2) Implicit to explicit (usize -> u32 | u64)
+3) Indirection
+4) Compile to 1 code instead of many codes (architecture targets)
+5) Processable by LLVM or cranelift (different formats)
+
 ## Responsibilities
 
-1. Generate machine code
-2. Target specific
+1) Generate machine code
+2) Target specific
    1. Architecture
    2. OS
-3. ~~Creating an executable~~ not always!
-
----
-
-## Tools
-
-1. LLVM
-2. cranelift
+3) ~~Creating an executable~~ not always!
 
 ---
 
@@ -380,8 +365,8 @@ MachineCode -> Effect
 
 ## Responsibilities
 
-1. Run machine code.
-2. Direct from binary or in an intepreter.
+1) Run machine code.
+2) Direct from binary or in an intepreter.
 
 ---
 
@@ -389,15 +374,13 @@ MachineCode -> Effect
 
 ---
 
-## JIT
-
-It generates machine code inside your app, gives you a pointer to the function you can then call to get a response back.
+## Just In Time - JIT
 
 steps
 
-1. Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
-2. Return pointer to machine code.
-3. Execute it (MachineCode -> Effect).
+1) Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
+2) Return pointer to machine code.
+3) Execute it (MachineCode -> Effect).
 
 ---
 
@@ -415,9 +398,9 @@ steps
 
 Build systems.
 
-1. Language goals
-2. Existing issues
-3. Possible solutions
+1) Language goals
+2) Existing issues
+3) Possible solutions
 
 ---
 
@@ -435,9 +418,9 @@ Hot reload/Interactive (dev mode, watch mode, test mode)
 
 Issues
 
-1.  Requires different script execution compared to build mode.
-2.  Painful to setup, language dependent, nothing talks the same way.
-3.  Rust into JS ecosystem? Easier to to neck yourself.
+1)  Requires different script execution compared to build mode.
+2)  Painful to setup, language dependent, nothing talks the same way.
+3)  Rust into JS ecosystem? Easier to to neck yourself.
 
 ---
 
@@ -483,7 +466,7 @@ What about scripting?
 
 Writing scripts sucks balls. Concurrency composition sucks. No way to control or delegate it really.
 
-1. defaults - parallel
+1) defaults - parallel
 
 new lines are series by default. Imagine if they weren't?
 
@@ -530,13 +513,13 @@ main!() = {
 
 ### Ecosystem issues
 
-1. Multi import using globs? Barrel imports without setting up breweries.
-2. Lockfile - Local system knows what artifacts to expect and when.
-3. Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
-4. Hermetic - Same every run.
+1) Multi import using globs? Barrel imports without setting up breweries.
+2) Lockfile - Local system knows what artifacts to expect and when.
+3) Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
+4) Hermetic - Same every run.
    1. Same packages and setup every time.
    2. What are my artifacts actually? Remove tracked artifacts before build. Get intellisense?
-5. Syntax for concurrency? Gotta be easier than this shit.
+5) Syntax for concurrency? Gotta be easier than this shit.
 
 ---
 
@@ -554,10 +537,10 @@ Languages are complementary to the goal.
 
 Features
 
-1. Glob as a built in construct.
-2. Globs have a lock file that are hashed?
-3. Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
-4. How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
+1) Glob as a built in construct.
+2) Globs have a lock file that are hashed?
+3) Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
+4) How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
 
 <!--1. You can be anything, like that comedian.-->
 
@@ -574,7 +557,7 @@ It's more than just executable text, it's a feeling.
 
 What makes a language stand out?
 
-1. Tooling & Experience
+1) Tooling & Experience
    1. LSP
    2. Dependencies
    3. Constraints
