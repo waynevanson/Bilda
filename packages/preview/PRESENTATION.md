@@ -22,36 +22,43 @@ let
   b = True
   d = "Hello, World!"
   e = [a b  d e]
-  # maybe there's a trait for `+` that allows us to manage assignments?
-  Validation = + {
-    result = Result,
-    value = String
+  Result = * {
+    ok = T
+    error = E
   }
-  # Kleisli to lift so I don't repeat myself?
-  z = [5 3 2 1]
-  y = List::of {
+  Validation = + {
+    result = Result
+    warnings = List<String>
+  }
+
+  result = Result {
+    ok = T
+  }
+  you = Validation {
+    result
+    warnings = []
   }
 in
-  [y * z]
+  e
 ```
 
 ---
 
 ## Inspiration
 
-1) Cormack's presentation — Build system tool `buck2`
-2) How to make languages better?
-3) Monads
-4) Rust project way to advanced
+1. Cormack's presentation — Build system tool `buck2`
+2. How to make languages better?
+3. Monads
+4. Rust project way to advanced
 
 ---
 
 ## Why Rust?
 
-1) Performance - Codebases could 1M LOC
-2) Strictness - Do what we know
-3) Structures - Sum, Product and Newtypes
-4) Ecosystem - Reusing the wheel
+1. Performance - Codebases could 1M LOC
+2. Strictness - Do what we know
+3. Structures - Sum, Product and Newtypes
+4. Ecosystem - Reusing the wheel
 
 ---
 
@@ -95,9 +102,9 @@ Execution ═══════│
 
 ## Responsibilities
 
-1) Groups characters
-2) Categorizes groups
-3) List
+1. Groups characters
+2. Categorizes groups
+3. List
 
 ---
 
@@ -129,11 +136,11 @@ fn main() {
 
 ## Why logos?
 
-1) Quick & Simple
-2) Compile time distinct patterns
-3) Skip patterns - spaces, comments
-4) Inline transforms - Coerce `&str` to value
-5) Lexer composition - String interpolation
+1. Quick & Simple
+2. Compile time distinct patterns
+3. Skip patterns - spaces, comments
+4. Inline transforms - Coerce `&str` to value
+5. Lexer composition - String interpolation
 
 ---
 
@@ -149,9 +156,9 @@ fn main() {
 
 ## Responsibilities
 
-1) Group tokens
-2) Categorizes groups
-3) Tree
+1. Group tokens
+2. Categorizes groups
+3. Tree
 
 ---
 
@@ -165,11 +172,11 @@ fn main() {
 
 ## Design
 
-1) Tokens and context.
-2) Token cursor moves along.
-3) Mutate context.
-4) Calculates from tokens taken.
-5) Adds errors.
+1. Tokens and context.
+2. Token cursor moves along.
+3. Mutate context.
+4. Calculates from tokens taken.
+5. Adds errors.
 
 ---
 
@@ -221,19 +228,19 @@ fn main() {
 
 # Parser - Combinators
 
-1) Parser as grammar rule
-2) Composition - Join many together
-3) Complex error handling managed
+1. Parser as grammar rule
+2. Composition - Join many together
+3. Complex error handling managed
 
 ---
 
 # Why `chumsky`?
 
-1) Performant
-2) Recursive descent - Tail recursive
-3) Pratt - Precedence
-4) Composition
-5) Optimised `check` and `run` mode
+1. Performant
+2. Recursive descent - Tail recursive
+3. Pratt - Precedence
+4. Composition
+5. Optimised `check` and `run` mode
 
 ---
 
@@ -251,11 +258,11 @@ select! {
 }
 ```
 
-1) Default `empty()`
+1. Default `empty()`
    1. increments 0 token/s.
    2. returns `()`.
    3. success.
-1) Match 1 `just(i)`
+1. Match 1 `just(i)`
    1. increments 1 token/s.
    2. returns `i`.
    3. success.
@@ -318,10 +325,10 @@ parser.pratt((parser_a, parser_b))
 
 ## Responsibilities
 
-1) Transform between languages
-2) Type checking
-3) Borrow checking
-4) ???
+1. Transform between languages
+2. Type checking
+3. Borrow checking
+4. ???
 
 ---
 
@@ -337,19 +344,19 @@ IR -> MachineCode
 
 ## Intermediate Representation (IR)
 
-1) Code
-2) Implicit to explicit (usize -> u32 | u64)
-3) Indirection
-4) Compile to 1 code instead of many codes (architecture targets)
-5) Processable by LLVM or cranelift (different formats)
+1. Code
+2. Implicit to explicit (usize -> u32 | u64)
+3. Indirection
+4. Compile to 1 code instead of many codes (architecture targets)
+5. Processable by LLVM or cranelift (different formats)
 
 ## Responsibilities
 
-1) Generate machine code
-2) Target specific
+1. Generate machine code
+2. Target specific
    1. Architecture
    2. OS
-3) ~~Creating an executable~~ not always!
+3. ~~Creating an executable~~ not always!
 
 ---
 
@@ -365,8 +372,8 @@ MachineCode -> Effect
 
 ## Responsibilities
 
-1) Run machine code.
-2) Direct from binary or in an intepreter.
+1. Run machine code.
+2. Direct from binary or in an intepreter.
 
 ---
 
@@ -378,9 +385,9 @@ MachineCode -> Effect
 
 steps
 
-1) Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
-2) Return pointer to machine code.
-3) Execute it (MachineCode -> Effect).
+1. Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
+2. Return pointer to machine code.
+3. Execute it (MachineCode -> Effect).
 
 ---
 
@@ -398,9 +405,9 @@ steps
 
 Build systems.
 
-1) Language goals
-2) Existing issues
-3) Possible solutions
+1. Language goals
+2. Existing issues
+3. Possible solutions
 
 ---
 
@@ -418,9 +425,9 @@ Hot reload/Interactive (dev mode, watch mode, test mode)
 
 Issues
 
-1)  Requires different script execution compared to build mode.
-2)  Painful to setup, language dependent, nothing talks the same way.
-3)  Rust into JS ecosystem? Easier to to neck yourself.
+1.  Requires different script execution compared to build mode.
+2.  Painful to setup, language dependent, nothing talks the same way.
+3.  Rust into JS ecosystem? Easier to to neck yourself.
 
 ---
 
@@ -466,7 +473,7 @@ What about scripting?
 
 Writing scripts sucks balls. Concurrency composition sucks. No way to control or delegate it really.
 
-1) defaults - parallel
+1. defaults - parallel
 
 new lines are series by default. Imagine if they weren't?
 
@@ -513,13 +520,13 @@ main!() = {
 
 ### Ecosystem issues
 
-1) Multi import using globs? Barrel imports without setting up breweries.
-2) Lockfile - Local system knows what artifacts to expect and when.
-3) Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
-4) Hermetic - Same every run.
+1. Multi import using globs? Barrel imports without setting up breweries.
+2. Lockfile - Local system knows what artifacts to expect and when.
+3. Feature explosion. Kaboom. Not just features, but every possible set of inputs/outputs.
+4. Hermetic - Same every run.
    1. Same packages and setup every time.
    2. What are my artifacts actually? Remove tracked artifacts before build. Get intellisense?
-5) Syntax for concurrency? Gotta be easier than this shit.
+5. Syntax for concurrency? Gotta be easier than this shit.
 
 ---
 
@@ -537,10 +544,10 @@ Languages are complementary to the goal.
 
 Features
 
-1) Glob as a built in construct.
-2) Globs have a lock file that are hashed?
-3) Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
-4) How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
+1. Glob as a built in construct.
+2. Globs have a lock file that are hashed?
+3. Allow composition of like-properties composable. `project-one.dependencies ++= [project-two, project-one.test]`
+4. How about `projects-one.dependencies.script.build ++= [project-one.script.test]`
 
 <!--1. You can be anything, like that comedian.-->
 
@@ -557,7 +564,7 @@ It's more than just executable text, it's a feeling.
 
 What makes a language stand out?
 
-1) Tooling & Experience
+1. Tooling & Experience
    1. LSP
    2. Dependencies
    3. Constraints
