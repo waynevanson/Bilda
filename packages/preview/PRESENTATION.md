@@ -17,7 +17,7 @@ The language for languages
 # Excerpt
 
 ```nix
-let
+\name this that => let
   Result = sum {
     ok
     error
@@ -29,19 +29,18 @@ let
   number = 2
   boolean = True
   string = "Hello, World!"
-  list = [a b  d e]
   attrset = {
-    name = ""
+    name = string ++ " " ++ "Waddup?!"
   }
   result = Result {
-    ok = T
+    ok =
   }
-  you = Validation {
+  validation = Validation {
     result
     warnings = []
   }
 in
-  \name this that =>
+  validation
 ```
 
 ---
