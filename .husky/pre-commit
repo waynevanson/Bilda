@@ -1,0 +1,7 @@
+#!/bin/sh
+# Replace numbered list periods with brackets in the preview presentation file
+file="packages/preview/PRESENTATION.md"
+if [ -f "$file" ] && grep -qE '^[0-9]+\.' "$file"; then
+	sed -i -E 's/^([0-9]+)\./\1)/' "$file"
+	git add "$file"
+fi
