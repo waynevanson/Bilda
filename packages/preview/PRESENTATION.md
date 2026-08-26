@@ -16,21 +16,23 @@ The language for languages
 
 # Excerpt
 
-```
+```nix
 let
-  a = 2
-  b = True
-  d = "Hello, World!"
-  e = [a b  d e]
-  Result = * {
-    ok = T
-    error = E
+  Result = sum {
+    ok
+    error
   }
-  Validation = + {
-    result = Result
-    warnings = List<String>
+  Validation = product {
+    result
+    warnings
   }
-
+  number = 2
+  boolean = True
+  string = "Hello, World!"
+  list = [a b  d e]
+  attrset = {
+    name = ""
+  }
   result = Result {
     ok = T
   }
@@ -39,7 +41,7 @@ let
     warnings = []
   }
 in
-  e
+  \name this that =>
 ```
 
 ---
