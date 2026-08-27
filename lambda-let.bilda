@@ -13,7 +13,10 @@ let
     boolean = True
     string = "Hello, World!"
     attrset = {
-      name = string ++ " " ++ "Waddup?!"
+      greeting = string ++ " " ++ "Waddup?!"
+      name
+      this
+      that
     }
     result = Result {
       ok = attrset

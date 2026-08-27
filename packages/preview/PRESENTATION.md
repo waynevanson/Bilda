@@ -17,30 +17,36 @@ The language for languages
 # Excerpt
 
 ```nix
-\name this that => let
-  Result = sum {
-    ok
-    error
-  }
-  Validation = product {
-    result
-    warnings
-  }
-  number = 2
-  boolean = True
-  string = "Hello, World!"
-  attrset = {
-    name = string ++ " " ++ "Waddup?!"
-  }
-  result = Result {
-    ok =
-  }
-  validation = Validation {
-    result
-    warnings = []
-  }
+let
+  f = \name this that => let
+    Result = sum {
+      ok
+      error
+    }
+    Validation = product {
+      result
+      warnings
+    }
+    number = 2
+    boolean = True
+    string = "Hello, World!"
+    attrset = {
+      greeting = string ++ " " ++ "Waddup?!"
+      name
+      this
+      that
+    }
+    result = Result {
+      ok = attrset
+    }
+    validation = Validation {
+      result
+      warnings = []
+    }
+  in
+    validation
 in
-  validation
+  f 1 2 3
 ```
 
 ---
@@ -175,8 +181,8 @@ fn main() {
 
 1) Tokens and context.
 2) Token cursor moves along.
-3) Mutate context.
-4) Calculates from tokens taken.
+3) Calculates value from tokens taken.
+4) Mutate context.
 5) Adds errors.
 
 ---
@@ -193,15 +199,15 @@ struct Ast {
 
 // returns a parser for Ast
 fn ast<'token, 'src: 'token>() -> impl Parser<'token, &'src str, Ast> {
+    // parser - let keyword
+    let let_keyword = just(Token::Let);
+
     // parser - match if this token is next
     let identifier = select! {
         Token::Identifier(str) => Ast {
             identifier: identifier.to_string()
         }
     };
-
-    // parser - let keyword
-    let let_keyword = just(Token::Let);
 
     // parser - ignores first value, keeps second
     let_keyword.ignore_then(identifier)
@@ -231,7 +237,7 @@ fn main() {
 
 1) Parser as grammar rule
 2) Composition - Join many together
-3) Complex error handling managed
+3) Complex error handling managed - Warnings too
 
 ---
 
@@ -239,7 +245,7 @@ fn main() {
 
 1) Performant
 2) Recursive descent - Tail recursive
-3) Pratt - Precedence
+3) Pratt - Precedence (binding power)
 4) Composition
 5) Optimised `check` and `run` mode
 
@@ -251,9 +257,10 @@ fn main() {
 // increments 0 tokens, Ok
 empty() -> ()
 
+// match our input and return it
 just(Token) -> Token
 
-// `just` with
+// `just` with pattern matching
 select! {
     Token => "Something"
 }
@@ -298,10 +305,17 @@ parser.repeated().at_least(1).at_most(5).collect() -> Vec<T>
 
 ```rust
 // Parser in itself - (x  + (y - z))
-recursive(|parser_a| { parser_a })
+recursive(|parser_a| {
+    just(Token::LeftBracket)
+        .ignore_then(parser_a)
+        .then_ignore(just(Token::RightBracket))
+})
 
 // Precedence - (x - y + z)
-parser.pratt((parser_a, parser_b))
+math.pratt((
+    infix(left(2), just(Token::Plus), |l, s, r, _| combine(l, s, r)),
+    infix(left(1), just(Token::Minus),  |l, s, r, _| combine(l, s, r)),
+))
 ```
 
 ---
@@ -320,10 +334,10 @@ parser.pratt((parser_a, parser_b))
 
 ## Responsibilities
 
-1) Transform between languages
 2) Type checking
 3) Borrow checking
-4) ???
+4) Traversal to code
+5) ???
 
 ---
 
@@ -376,12 +390,13 @@ MachineCode -> Effect
 
 ## Responsibilities
 
-1) Direct from binary or in an intepreter.
 2) Run machine code.
 
 ---
 
 # Implementation
+
+<sub>Finally</sub>
 
 ---
 
