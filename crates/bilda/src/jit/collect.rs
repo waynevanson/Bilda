@@ -20,7 +20,7 @@ pub(crate) fn collect_lambdas_expr<'a>(expr: &Expression<'a>, out: &mut Vec<*con
     match expr {
         Expression::Lambda(lambda) => {
             out.push(expr as *const Expression<'a>);
-            collect_lambdas_expr(&lambda.body, out);
+            collect_lambdas_ast(&lambda.body, out);
         }
         Expression::Map(Map { assignments })
         | Expression::Product(Product { assignments })
@@ -36,6 +36,15 @@ pub(crate) fn collect_lambdas_expr<'a>(expr: &Expression<'a>, out: &mut Vec<*con
         Expression::Math(Math { left, right, .. }) => {
             collect_math_target(left, out);
             collect_math_target(right, out);
+        }
+        Expression::List(items) => {
+            for item in items {
+                collect_lambdas_expr(item, out);
+            }
+        }
+        Expression::Concat(concat) => {
+            collect_lambdas_expr(&concat.left, out);
+            collect_lambdas_expr(&concat.right, out);
         }
         Expression::Not(_) => {}
         _ => {}

@@ -56,13 +56,16 @@ fn check(path: &str) {
 fn run(path: &str) {
     let source = read_source(path);
     let tokens = lex(&source);
-    let ast = ast()
-        .parse(Stream::from_iter(tokens))
-        .into_result()
-        .unwrap_or_else(|_| {
-            eprintln!("parse error");
+    let parsed = ast().parse(Stream::from_iter(tokens));
+    let ast = match parsed.into_result() {
+        Ok(ast) => ast,
+        Err(errs) => {
+            for err in &errs {
+                eprintln!("parse error: {err:?}");
+            }
             process::exit(1);
-        });
+        }
+    };
 
     let compiled = compile(&ast).unwrap_or_else(|e| {
         eprintln!("compile error: {e:?}");

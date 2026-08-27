@@ -7,7 +7,8 @@ use cranelift_jit::{JITBuilder, JITModule};
 use cranelift_module::{Linkage, Module, default_libcall_names};
 
 use crate::ast::{
-    Ast, Boolean, Call, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget, Product, Sum,
+    Ast, Boolean, Call, Concat, Expression, Lambda, LetIn, Map, Math, MathSign, MathTarget,
+    Product, Sum,
 };
 use crate::jit::collect::value_is_function;
 use crate::jit::compiled::Compiled;
@@ -85,11 +86,8 @@ impl<'a> Compiler<'a> {
                 _ => unreachable!(),
             };
 
-            if lambda.params.len() != 1 {
-                return Err(UnsupportedError::LambdaArity {
-                    found: lambda.params.len(),
-                }
-                .into());
+            if lambda.params.is_empty() {
+                return Err(UnsupportedError::LambdaArity { found: 0 }.into());
             }
 
             let func_id = self.lambda_table.func_ids[&lambda_expr];
@@ -116,12 +114,25 @@ impl<'a> Compiler<'a> {
         bcx.switch_to_block(block);
         bcx.append_block_params_for_function_params(block);
         let arg_param = bcx.block_params(block)[0];
+        let env_param = bcx.block_params(block)[1];
 
         let mut env = Env::new();
         env.push_scope();
-        env.insert(lambda.params[0], arg_param, false)?;
 
-        let body = self.compile_expr(&mut bcx, &lambda.body, &mut env)?;
+        // Earlier params are captured in the runtime env; the last one arrives
+        // directly as `arg_param`.
+        let captured = lambda.params.len().saturating_sub(1);
+        for (i, name) in lambda.params[..captured].iter().enumerate() {
+            let idx = bcx.ins().iconst(self.types.int, i as i64);
+            let value = self.call_helper(&mut bcx, "bilda_capture_get", &[env_param, idx])?;
+            self.call_helper(&mut bcx, "bilda_incref", &[value])?;
+            env.insert(name, value, false)?;
+        }
+        if let Some(&last) = lambda.params.last() {
+            env.insert(last, arg_param, false)?;
+        }
+
+        let body = self.compile_ast(&mut bcx, &lambda.body, &mut env)?;
         env.decref_scope_except(&mut bcx, self, body)?;
         bcx.ins().return_(&[body]);
         bcx.seal_all_blocks();
@@ -271,13 +282,16 @@ impl<'a> Compiler<'a> {
                 self.call_helper(bcx, "bilda_make_bool", &[c])
             }
             Expression::Math(math) => self.compile_math(bcx, math, env),
+            Expression::List(items) => self.compile_list(bcx, items, env),
+            Expression::Concat(concat) => self.compile_concat(bcx, concat, env),
+            Expression::Unit => self.call_helper(bcx, "bilda_make_unit", &[]),
             Expression::Map(Map { assignments }) => self.compile_map(bcx, assignments, None, env),
             Expression::Product(Product { assignments }) => {
                 self.compile_map(bcx, assignments, None, env)
             }
             Expression::Sum(Sum { assignments }) => self.compile_map(bcx, assignments, None, env),
             Expression::Call(call) => self.compile_call(bcx, call, env),
-            Expression::Lambda(_) => {
+            Expression::Lambda(lambda) => {
                 let key = expr as *const Expression;
                 let func_id = self
                     .lambda_table
@@ -286,7 +300,8 @@ impl<'a> Compiler<'a> {
                 let func_ref = self.module.declare_func_in_func(func_id, bcx.func);
                 let func_addr = bcx.ins().func_addr(self.types.pointer, func_ref);
                 let null_env = bcx.ins().iconst(self.types.pointer, 0);
-                self.call_helper(bcx, "bilda_make_closure", &[func_addr, null_env])
+                let arity = bcx.ins().iconst(self.types.int, lambda.params.len() as i64);
+                self.call_helper(bcx, "bilda_make_closure", &[func_addr, null_env, arity])
             }
         }
     }
@@ -313,6 +328,35 @@ impl<'a> Compiler<'a> {
             self.call_helper(bcx, "bilda_decref", &[value])?;
         }
         Ok(map)
+    }
+
+    fn compile_list(
+        &mut self,
+        bcx: &mut FunctionBuilder,
+        items: &'a [Expression<'a>],
+        env: &mut Env<'a>,
+    ) -> Result<Value, CompileError> {
+        let list = self.call_helper(bcx, "bilda_make_list", &[])?;
+        for item in items {
+            let value = self.compile_expr(bcx, item, env)?;
+            self.call_helper(bcx, "bilda_list_push", &[list, value])?;
+            self.call_helper(bcx, "bilda_decref", &[value])?;
+        }
+        Ok(list)
+    }
+
+    fn compile_concat(
+        &mut self,
+        bcx: &mut FunctionBuilder,
+        concat: &'a Concat<'a>,
+        env: &mut Env<'a>,
+    ) -> Result<Value, CompileError> {
+        let left = self.compile_expr(bcx, &concat.left, env)?;
+        let right = self.compile_expr(bcx, &concat.right, env)?;
+        let result = self.call_helper(bcx, "bilda_concat", &[left, right])?;
+        self.call_helper(bcx, "bilda_decref", &[left])?;
+        self.call_helper(bcx, "bilda_decref", &[right])?;
+        Ok(result)
     }
 
     fn compile_call(
@@ -408,7 +452,9 @@ mod tests {
     use crate::lexer::Token;
     use crate::parser::ast;
     use crate::runtime::bilda_decref;
-    use crate::runtime::value::{MapObj, StringObj, TAG_BOOL, TAG_INT, TAG_MAP, TAG_STRING};
+    use crate::runtime::value::{
+        ListObj, MapObj, StringObj, TAG_BOOL, TAG_INT, TAG_LIST, TAG_MAP, TAG_STRING,
+    };
     use chumsky::Parser;
     use chumsky::input::Stream;
     use logos::Logos;
@@ -519,6 +565,42 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_BOOL);
         assert_eq!(v.payload, 1);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
+    }
+
+    #[test]
+    fn compile_concat() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(r#""hello" ++ " " ++ "world""#)?;
+        let compiled = compile(&ast)?;
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_STRING);
+        let obj = unsafe { &*(v.payload as *const StringObj) };
+        let bytes = unsafe { std::slice::from_raw_parts(obj.data.as_ptr() as *const u8, obj.len) };
+        assert_eq!(bytes, b"hello world");
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
+    }
+
+    #[test]
+    fn compile_list() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(r#"["a" "b"]"#)?;
+        let compiled = compile(&ast)?;
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_LIST);
+        let obj = unsafe { &*(v.payload as *const ListObj) };
+        assert_eq!(obj.len, 2);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
+    }
+
+    #[test]
+    fn compile_multi_lambda() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(r"let f = \x y => x + y in f(2)(3)")?;
+        let compiled = compile(&ast)?;
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_INT);
+        assert_eq!(v.payload as isize, 5);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
         Ok(())
     }

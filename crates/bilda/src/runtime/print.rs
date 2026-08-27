@@ -5,7 +5,8 @@ use std::ffi::CStr;
 use std::slice;
 
 use crate::runtime::value::{
-    MapObj, StringObj, Value, TAG_BOOL, TAG_FLOAT, TAG_FUNCTION, TAG_INT, TAG_MAP, TAG_STRING,
+    ListObj, MapObj, StringObj, Value, TAG_BOOL, TAG_FLOAT, TAG_FUNCTION, TAG_INT, TAG_LIST,
+    TAG_MAP, TAG_STRING, TAG_UNIT,
 };
 
 #[unsafe(no_mangle)]
@@ -42,6 +43,18 @@ pub unsafe extern "C" fn bilda_print(value: *mut Value) {
             }
             print!(" }}");
         }
+        TAG_LIST => {
+            let obj = (*value).payload as *const ListObj;
+            print!("[");
+            for i in 0..(*obj).len {
+                bilda_print(*(*obj).items.add(i));
+                if i + 1 < (*obj).len {
+                    print!(", ");
+                }
+            }
+            print!("]");
+        }
+        TAG_UNIT => print!("()"),
         TAG_FUNCTION => print!("<function>"),
         _ => print!("<unknown>"),
     }

@@ -14,8 +14,8 @@ pub use crate::parser::ast::ast;
 mod tests {
     use super::*;
     use crate::ast::{
-        Assignment, Ast, Boolean, Call, Expression, LetIn, Map, Math, MathSign, MathTarget,
-        Product, Sum,
+        Assignment, Ast, Boolean, Call, Concat, Expression, Lambda, LetIn, Map, Math, MathSign,
+        MathTarget, Product, Sum,
     };
     use crate::lexer::Token;
     use chumsky::{Parser, input::Stream};
@@ -210,6 +210,51 @@ mod tests {
                 })),
             })),
         })
+    )]
+    #[case(
+        r#""a" ++ "b""#,
+        Ast::Expression(Expression::Concat(Box::new(Concat {
+            left: Expression::String("a"),
+            right: Expression::String("b"),
+        })))
+    )]
+    #[case(
+        r#"["a" "b"]"#,
+        Ast::Expression(Expression::List(vec![
+            Expression::String("a"),
+            Expression::String("b"),
+        ]))
+    )]
+    #[case(
+        "{ ok = }",
+        Ast::Expression(Expression::Map(Map {
+            assignments: vec![Assignment {
+                name: "ok",
+                value: Box::new(Ast::Expression(Expression::Unit)),
+            }],
+        }))
+    )]
+    #[case(
+        "sum { ok error }",
+        Ast::Expression(Expression::Sum(Sum {
+            assignments: vec![
+                Assignment {
+                    name: "ok",
+                    value: Box::new(Ast::Expression(Expression::Unit)),
+                },
+                Assignment {
+                    name: "error",
+                    value: Box::new(Ast::Expression(Expression::Unit)),
+                },
+            ],
+        }))
+    )]
+    #[case(
+        r"\x y => x",
+        Ast::Expression(Expression::Lambda(Lambda {
+            params: vec!["x", "y"],
+            body: Box::new(Ast::Expression(Expression::Reference("x"))),
+        }))
     )]
     fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
         let tokens: Vec<Token<'_>> = Token::lexer(source)

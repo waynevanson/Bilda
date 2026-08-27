@@ -53,13 +53,19 @@ pub struct Sum<'input> {
 #[derive(Debug, PartialEq)]
 pub struct Lambda<'input> {
     pub params: Vec<&'input str>,
-    pub body: Box<Expression<'input>>,
+    pub body: Box<Ast<'input>>,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct Call<'input> {
     pub function: Box<Expression<'input>>,
     pub argument: Box<Expression<'input>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Concat<'input> {
+    pub left: Expression<'input>,
+    pub right: Expression<'input>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -76,6 +82,9 @@ pub enum Expression<'input> {
     Math(Math<'input>),
     Boolean(Boolean),
     Not(Boolean),
+    List(Vec<Expression<'input>>),
+    Concat(Box<Concat<'input>>),
+    Unit,
 }
 
 #[derive(Debug, PartialEq)]

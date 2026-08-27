@@ -4,7 +4,7 @@
 use std::ptr;
 
 use crate::runtime::alloc::allocate;
-use crate::runtime::value::{Value, TAG_BOOL, TAG_FLOAT, TAG_INT};
+use crate::runtime::value::{Value, TAG_BOOL, TAG_FLOAT, TAG_INT, TAG_UNIT};
 
 pub unsafe fn alloc_value(tag: u64, payload: u64) -> *mut Value {
     let layout = std::alloc::Layout::new::<Value>();
@@ -33,4 +33,9 @@ pub unsafe extern "C" fn bilda_make_bool(b: bool) -> *mut Value {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bilda_make_float(f: f64) -> *mut Value {
     alloc_value(TAG_FLOAT, f.to_bits())
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn bilda_make_unit() -> *mut Value {
+    alloc_value(TAG_UNIT, 0)
 }

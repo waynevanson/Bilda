@@ -7,6 +7,8 @@ pub const TAG_STRING: u64 = 2;
 pub const TAG_MAP: u64 = 3;
 pub const TAG_FUNCTION: u64 = 4;
 pub const TAG_FLOAT: u64 = 5;
+pub const TAG_LIST: u64 = 6;
+pub const TAG_UNIT: u64 = 7;
 
 /// A Bilda value is a reference-counted pair of a tag and a payload.
 #[repr(C)]
@@ -38,6 +40,22 @@ pub struct MapObj {
     pub entries: *mut MapEntry,
 }
 
+#[repr(C)]
+pub struct ListObj {
+    pub refcount: usize,
+    pub len: usize,
+    pub capacity: usize,
+    pub items: *mut *mut Value,
+}
+
+#[repr(C)]
+pub struct CaptureObj {
+    pub refcount: usize,
+    pub len: usize,
+    pub capacity: usize,
+    pub values: *mut *mut Value,
+}
+
 pub type BildaFn = extern "C" fn(*mut Value, *mut c_void) -> *mut Value;
 
 #[repr(C)]
@@ -45,4 +63,5 @@ pub struct ClosureObj {
     pub refcount: usize,
     pub func: BildaFn,
     pub env: *mut c_void,
+    pub remaining: usize,
 }

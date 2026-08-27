@@ -17,13 +17,19 @@ impl RuntimeHelpers {
     pub fn declare(module: &mut JITModule, types: Types) -> Result<Self, CompileError> {
         let mut funcs = HashMap::new();
 
-        let specs: [(&'static str, &[Type], &[Type]); 12] = [
+        let specs: [(&'static str, &[Type], &[Type]); 17] = [
             ("bilda_make_int", &[types.int], &[types.pointer]),
             ("bilda_make_bool", &[types.bool], &[types.pointer]),
             ("bilda_make_float", &[F64], &[types.pointer]),
+            ("bilda_make_unit", &[], &[types.pointer]),
             (
                 "bilda_make_string",
                 &[types.pointer, types.int],
+                &[types.pointer],
+            ),
+            (
+                "bilda_concat",
+                &[types.pointer, types.pointer],
                 &[types.pointer],
             ),
             (
@@ -41,9 +47,20 @@ impl RuntimeHelpers {
                 &[types.pointer, types.pointer, types.int, types.pointer],
                 &[],
             ),
+            ("bilda_make_list", &[], &[types.pointer]),
+            (
+                "bilda_list_push",
+                &[types.pointer, types.pointer],
+                &[],
+            ),
             (
                 "bilda_make_closure",
-                &[types.pointer, types.pointer],
+                &[types.pointer, types.pointer, types.int],
+                &[types.pointer],
+            ),
+            (
+                "bilda_capture_get",
+                &[types.pointer, types.int],
                 &[types.pointer],
             ),
             (

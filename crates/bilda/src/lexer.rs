@@ -36,6 +36,10 @@ pub enum Token<'input> {
     Let,
     #[token("in")]
     In,
+    #[token("sum")]
+    Sum,
+    #[token("product")]
+    Product,
 
     // Brackets
     #[token("(")]
@@ -46,6 +50,10 @@ pub enum Token<'input> {
     CurlyBracketLeft,
     #[token("}")]
     CurlyBracketRight,
+    #[token("[")]
+    SquareBracketLeft,
+    #[token("]")]
+    SquareBracketRight,
 
     // Primitives
     #[token("True")]
@@ -68,12 +76,16 @@ pub enum Token<'input> {
     Minus,
     #[token("+")]
     Plus,
+    #[token("++")]
+    Concat,
     #[token("/")]
     ForwardSlash,
     #[token("*")]
     Asterisk,
     #[token("!")]
     Bang,
+    #[token("\\")]
+    Backslash,
     #[regex(r#""[^"]*""#, |lexer| {
         let slice = lexer.slice();
         &slice[1..slice.len() - 1]

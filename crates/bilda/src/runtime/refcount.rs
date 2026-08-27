@@ -4,9 +4,10 @@
 use std::alloc::{Layout, dealloc};
 
 use crate::runtime::closure::free_closure_obj;
+use crate::runtime::list::free_list_obj;
 use crate::runtime::map::free_map_obj;
 use crate::runtime::string::free_string_obj;
-use crate::runtime::value::{Value, TAG_FUNCTION, TAG_MAP, TAG_STRING};
+use crate::runtime::value::{Value, TAG_FUNCTION, TAG_LIST, TAG_MAP, TAG_STRING};
 
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn bilda_incref(value: *mut Value) {
@@ -25,6 +26,10 @@ pub unsafe extern "C" fn bilda_incref(value: *mut Value) {
         }
         TAG_FUNCTION => {
             let obj = (*value).payload as *mut crate::runtime::value::ClosureObj;
+            (*obj).refcount += 1;
+        }
+        TAG_LIST => {
+            let obj = (*value).payload as *mut crate::runtime::value::ListObj;
             (*obj).refcount += 1;
         }
         _ => {}
@@ -60,6 +65,13 @@ pub unsafe extern "C" fn bilda_decref(value: *mut Value) {
             (*obj).refcount -= 1;
             if (*obj).refcount == 0 {
                 free_closure_obj(obj);
+            }
+        }
+        TAG_LIST => {
+            let obj = (*value).payload as *mut crate::runtime::value::ListObj;
+            (*obj).refcount -= 1;
+            if (*obj).refcount == 0 {
+                free_list_obj(obj);
             }
         }
         _ => {}
