@@ -453,7 +453,8 @@ mod tests {
     use crate::parser::ast;
     use crate::runtime::bilda_decref;
     use crate::runtime::value::{
-        ListObj, MapObj, StringObj, TAG_BOOL, TAG_INT, TAG_LIST, TAG_MAP, TAG_STRING,
+        ListObj, MapObj, StringObj, TAG_BOOL, TAG_FUNCTION, TAG_INT, TAG_LIST, TAG_MAP,
+        TAG_STRING,
     };
     use chumsky::Parser;
     use chumsky::input::Stream;
@@ -601,6 +602,58 @@ mod tests {
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
         assert_eq!(v.payload as isize, 5);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
+    }
+
+    #[test]
+    fn compile_lambda_let_body() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(
+            r#"let f = \name this that => let
+  number = 2
+in
+  number
+in f(1)(2)(3)"#,
+        )?;
+        let compiled = compile(&ast)?;
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_INT);
+        assert_eq!(v.payload as isize, 2);
+        unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
+        Ok(())
+    }
+
+    #[test]
+    fn compile_lambda_excerpt_returns_closure() -> Result<(), Box<dyn std::error::Error>> {
+        let ast = parse(
+            r#"\name this that => let
+  Result = sum {
+    ok
+    error
+  }
+  Validation = product {
+    result
+    warnings
+  }
+  number = 2
+  boolean = True
+  string = "Hello, World!"
+  attrset = {
+    name = string ++ " " ++ "Waddup?!"
+  }
+  result = Result {
+    ok =
+  }
+  validation = Validation {
+    result
+    warnings = []
+  }
+in
+  validation"#,
+        )?;
+        let compiled = compile(&ast)?;
+        let v = unsafe { &*compiled.run() };
+        assert_eq!(v.tag, TAG_FUNCTION);
         unsafe { bilda_decref(v as *const RawValue as *mut RawValue) };
         Ok(())
     }
