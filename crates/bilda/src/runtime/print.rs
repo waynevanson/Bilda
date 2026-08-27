@@ -38,7 +38,7 @@ pub unsafe extern "C" fn bilda_print(value: *mut Value) {
                 print!("{} = ", CStr::from_ptr(entry.name).to_string_lossy());
                 bilda_print(entry.value);
                 if i + 1 < (*obj).len {
-                    print!(", ");
+                    print!(" ");
                 }
             }
             print!(" }}");
@@ -49,7 +49,7 @@ pub unsafe extern "C" fn bilda_print(value: *mut Value) {
             for i in 0..(*obj).len {
                 bilda_print(*(*obj).items.add(i));
                 if i + 1 < (*obj).len {
-                    print!(", ");
+                    print!(" ");
                 }
             }
             print!("]");

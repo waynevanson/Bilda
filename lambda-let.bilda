@@ -1,0 +1,28 @@
+# Test case for the lambda syntax from packages/preview/PRESENTATION.md (LOC20)
+let
+  f = \name this that => let
+    Result = sum {
+      ok
+      error
+    }
+    Validation = product {
+      result
+      warnings
+    }
+    number = 2
+    boolean = True
+    string = "Hello, World!"
+    attrset = {
+      name = string ++ " " ++ "Waddup?!"
+    }
+    result = Result {
+      ok =
+    }
+    validation = Validation {
+      result
+      warnings = []
+    }
+  in
+    validation
+in
+  f(1)(2)(3)
