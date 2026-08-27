@@ -337,6 +337,23 @@ parser.pratt((parser_a, parser_b))
 IR -> MachineCode
 ```
 
+## Responsibilities
+
+1) Generate machine code
+2) Target specific (Triple)
+   1. Architecture
+   2. OS
+   3. Other stuf
+3) ~~Creating an executable~~ not always!
+
+---
+
+## Signature
+
+```
+IR -> MachineCode
+```
+
 ## Intermediate Representation (IR)
 
 1) Code
@@ -344,14 +361,6 @@ IR -> MachineCode
 3) Indirection
 4) Compile to 1 code instead of many codes (architecture targets)
 5) Processable by LLVM or cranelift (different formats)
-
-## Responsibilities
-
-1) Generate machine code
-2) Target specific
-   1. Architecture
-   2. OS
-3) ~~Creating an executable~~ not always!
 
 ---
 
@@ -367,22 +376,51 @@ MachineCode -> Effect
 
 ## Responsibilities
 
-1) Run machine code.
-2) Direct from binary or in an intepreter.
+1) Direct from binary or in an intepreter.
+2) Run machine code.
 
 ---
 
-# How we gon do it fam?
+# Implementation
 
 ---
 
-## Just In Time - JIT
+## [Excuses for vibe coding out the runtime]
 
-steps
+1) Skill gap
+2) End of life is tonight
+3) Demogods > Human input
 
-1) Iterate over our AST using cranelift JIT API's (AST -> MachineCode)
-2) Return pointer to machine code.
-3) Execute it (MachineCode -> Effect).
+---
+
+# Just In Time - JIT
+
+## Steps
+
+1) Iterate over AST
+2) Register to Cranelift JIT module - `AST -> MachineCode`
+3) Create pointer to machine code.
+4) Execute it - `MachineCode -> Effect`
+
+---
+
+# AST Traversal & Registration
+
+// Show the for loop
+
+---
+
+# Pointer for Machine Code
+
+// Show creating the function then executing it
+
+---
+
+# Next time
+
+## Comparing Rust to other languages
+
+### Features and trade-offs
 
 ---
 
