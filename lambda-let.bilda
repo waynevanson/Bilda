@@ -16,7 +16,7 @@ let
       name = string ++ " " ++ "Waddup?!"
     }
     result = Result {
-      ok =
+      ok = attrset
     }
     validation = Validation {
       result

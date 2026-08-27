@@ -138,7 +138,7 @@ fn main() {
 ## Why logos?
 
 1) Quick & Simple implementation
-2) Performance - Compile time distinct patterns
+2) Performance - Compile time distinct patterns to state machine
 3) Skip patterns - spaces, comments, etc.
 4) Inline transforms - Coerce `&str` to value
 5) Lexer composition - String interpolation
@@ -406,13 +406,26 @@ MachineCode -> Effect
 
 # AST Traversal & Registration
 
-// Show the for loop
+```rust
+for (idx, &lambda_expr) in expressions.iter().enumerate() {
+    let name = format!("lambda_{idx}");
+    let id = module.declare_function(&name, Linkage::Local, &sig)?;
+    func_ids.insert(lambda_expr, id);
+}
+```
 
 ---
 
 # Pointer for Machine Code
 
-// Show creating the function then executing it
+```rust
+let code = module.get_finalized_function(main_id);
+let main = unsafe {
+    mem::transmute::<*const u8, extern "C" fn() -> *mut RawValue>(code)
+};
+
+let value = main(); // machine code runs
+```
 
 ---
 
