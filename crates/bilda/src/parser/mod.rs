@@ -256,6 +256,29 @@ mod tests {
             body: Box::new(Ast::Expression(Expression::Reference("x"))),
         }))
     )]
+    #[case(
+        "f 1 2 3",
+        Ast::Expression(Expression::Call(Call {
+            function: Box::new(Expression::Call(Call {
+                function: Box::new(Expression::Call(Call {
+                    function: Box::new(Expression::Reference("f")),
+                    argument: Box::new(Expression::Int(1)),
+                })),
+                argument: Box::new(Expression::Int(2)),
+            })),
+            argument: Box::new(Expression::Int(3)),
+        }))
+    )]
+    #[case(
+        "add x y",
+        Ast::Expression(Expression::Call(Call {
+            function: Box::new(Expression::Call(Call {
+                function: Box::new(Expression::Reference("add")),
+                argument: Box::new(Expression::Reference("x")),
+            })),
+            argument: Box::new(Expression::Reference("y")),
+        }))
+    )]
     fn expression(#[case] source: &str, #[case] expected: Ast<'_>) {
         let tokens: Vec<Token<'_>> = Token::lexer(source)
             .collect::<Result<_, _>>()

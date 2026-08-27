@@ -45,25 +45,25 @@ in
 
 ---
 
-## Inspiration
+# Inspiration
 
 1) Cormack's presentation — Build system tool `buck2`
-2) How to make languages better?
-3) Monads
+2) Optimal language syntax — Functional, expresion based, lazy
+3) Monads and generalized structures
 4) Rust project way to advanced
 
 ---
 
-## Why Rust?
+# Why Rust?
 
 1) Performance - Codebases could 1M LOC
-2) Strictness - Do what we know
+2) Strict & Predictable
 3) Structures - Sum, Product and Newtypes
 4) Ecosystem - Reusing the wheel
 
 ---
 
-## Signtaure
+# Signtaure
 
 ```
 Text -> Effect
@@ -73,7 +73,7 @@ Our code needs to do something
 
 ---
 
-#### Transformation Pipeline (Program/s)
+# Transformation Pipeline (Program/s)
 
 ```
                  ┌─ Text ───────── "let x = 2 in x"
@@ -137,9 +137,9 @@ fn main() {
 
 ## Why logos?
 
-1) Quick & Simple
-2) Compile time distinct patterns
-3) Skip patterns - spaces, comments
+1) Quick & Simple implementation
+2) Performance - Compile time distinct patterns
+3) Skip patterns - spaces, comments, etc.
 4) Inline transforms - Coerce `&str` to value
 5) Lexer composition - String interpolation
 
@@ -257,16 +257,10 @@ just(Token) -> Token
 select! {
     Token => "Something"
 }
-```
 
-1) Default `empty()`
-   1. increments 0 token/s.
-   2. returns `()`.
-   3. success.
-1) Match 1 `just(i)`
-   1. increments 1 token/s.
-   2. returns `i`.
-   3. success.
+// fails if tokens list is non-empty
+eof()
+```
 
 ---
 

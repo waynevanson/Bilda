@@ -25,4 +25,4 @@ let
   in
     validation
 in
-  f(1)(2)(3)
+  f 1 2 3

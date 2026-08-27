@@ -119,7 +119,26 @@ where
         just(Token::RoundBracketRight),
     );
 
-    let arg = choice((paren_args, map.clone()));
+    let list = expression_list(expr.clone());
+
+    let number = select! {
+        Token::Number(n) => Expression::Int(n),
+        Token::Float(f) => Expression::Float(f),
+    };
+
+    let reference = property()
+        .then_ignore(just(Token::Equal).not())
+        .map(Expression::Reference);
+
+    let arg = choice((
+        paren_args,
+        map.clone(),
+        list,
+        expression_string(),
+        expression_boolean(),
+        number,
+        reference,
+    ));
 
     property()
         .then(arg.repeated().at_least(1).collect::<Vec<_>>())

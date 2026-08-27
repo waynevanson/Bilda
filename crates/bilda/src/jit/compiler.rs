@@ -543,7 +543,7 @@ mod tests {
 
     #[test]
     fn compile_lambda() -> Result<(), Box<dyn std::error::Error>> {
-        let ast = parse("let f = (x: Int) => x + 1 in f(5)")?;
+        let ast = parse("let f = (x: Int) => x + 1 in f 5")?;
         let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
@@ -597,7 +597,7 @@ mod tests {
 
     #[test]
     fn compile_multi_lambda() -> Result<(), Box<dyn std::error::Error>> {
-        let ast = parse(r"let f = \x y => x + y in f(2)(3)")?;
+        let ast = parse(r"let f = \x y => x + y in f 2 3")?;
         let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
         assert_eq!(v.tag, TAG_INT);
@@ -613,7 +613,7 @@ mod tests {
   number = 2
 in
   number
-in f(1)(2)(3)"#,
+in f 1 2 3"#,
         )?;
         let compiled = compile(&ast)?;
         let v = unsafe { &*compiled.run() };
